@@ -1,4 +1,4 @@
-# Guarded：本地 AI 工作助手
+# Guarded AI Agent：本地 AI 工作助手
 
 [English](README.md) · [安装指南](docs/setup.md) · [故障排查](docs/troubleshooting.md)
 
