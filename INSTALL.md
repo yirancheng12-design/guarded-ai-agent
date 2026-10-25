@@ -2,6 +2,34 @@
 
 [English home](README.md) · [中文首页](README.zh-CN.md)
 
+## Requirements checklist / 安装前提
+
+| Requirement | What you need |
+| --- | --- |
+| Python | Python 3.11+ with the standard `venv` module; enable `py` or `python` on PATH. Python is not automatically installed |
+| Files and permissions | Extract/clone the complete repository into a writable folder; run outside the ZIP. Administrator access is not required |
+| Platform | `.cmd` entry points require Windows. Linux/macOS users run `python3 tools/install.py` for the core tools |
+| Network and storage | Core setup downloads the package build dependencies from your configured pip index. Desktop setup also downloads optional packages and Chromium; allow sufficient disk space and network access |
+| Local chat | Separately install and start Ollama, then download a model declaring tool support. Choose it to fit your RAM/VRAM; no universal memory minimum or GPU requirement is claimed |
+| Desktop and GitHub tasks | Desktop control needs the desktop profile and an available Windows desktop session. GitHub tasks also need Git and suitable host-account permissions; these are not configured by the installer |
+
+Successful setup ends with `Installation and verification passed` and `.setup-state.json` containing `ok: true`. If it fails, read `.setup.log`, fix the cause and rerun the installer; do not treat a created `.venv` alone as success.
+
+| 项目 | 具体要求 |
+| --- | --- |
+| Python | 预先安装 Python 3.11+，包含标准 `venv` 模块，并让 `py` 或 `python` 命令可用；安装入口不会自动安装 Python |
+| 文件与权限 | 完整解压或克隆到可写目录，在 ZIP 外运行；不要求管理员权限 |
+| 系统 | 双击 `.cmd` 适用于 Windows；Linux/macOS 使用 `python3 tools/install.py` 安装核心工具 |
+| 网络与磁盘 | 核心安装需要从配置的 pip 软件源下载构建依赖；桌面完整版还下载可选依赖和 Chromium，请预留相应空间并确保网络可用 |
+| 本地聊天 | 另行安装并启动 Ollama，下载声明支持工具调用的模型；按内存/显存选择，没有统一的最低内存或显卡要求承诺 |
+| 桌面与 GitHub 任务 | 桌面控制需要完整版依赖和可用的 Windows 桌面会话；GitHub 任务另需 Git 与宿主账号权限，安装器不会代为登录 |
+
+只有显示 `Installation and verification passed` 且 `.setup-state.json` 中 `ok: true` 才表示安装检查通过。失败请查看 `.setup.log`，修复后重试；不能仅凭 `.venv` 已创建就认为成功。
+
+Core setup prepares the program, not a running model. After installation, start Ollama and follow [model setup](docs/setup.md), then open `Start-Guarded.cmd` and select an installed model. Use `.venv\Scripts\python.exe -m guarded_agent doctor --check-ollama` to check the local Ollama connection. The desktop installer adds packages and Chromium but does not install Ollama, download model weights or configure GitHub credentials.
+
+核心安装完成不代表模型已运行。安装后先启动 Ollama，按[模型配置指南](docs/setup.md)下载适合本机的模型，再双击 `Start-Guarded.cmd` 并在界面选择模型。可执行 `.venv\Scripts\python.exe -m guarded_agent doctor --check-ollama` 检查 Ollama 连接。桌面完整版安装依赖与 Chromium，不会安装 Ollama、下载模型权重或配置 GitHub 凭据。
+
 ## Windows
 
 1. Install Python 3.11+ from [python.org](https://www.python.org/downloads/), including the Python launcher or PATH entry. Python itself is a prerequisite, not bundled by this project.

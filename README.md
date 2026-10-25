@@ -12,6 +12,19 @@ Start with a simulation that needs no model or GPU, then add local chat, tool us
 
 With Python 3.11+ installed, extract the whole repository and double-click [Install.cmd](Install.cmd) for the core app, or [Install-Desktop.cmd](Install-Desktop.cmd) for Windows desktop, browser and document dependencies plus Chromium. After verification, double-click `Start-Guarded.cmd`. Ollama and a suitable model are separate prerequisites for chat. See [installation details and recovery](INSTALL.md).
 
+### Requirements before you click
+
+| Requirement | What you need |
+| --- | --- |
+| Python | Python 3.11+ with the standard `venv` module; enable `py` or `python` on PATH. Python is not automatically installed |
+| Files and permissions | Extract/clone the complete repository into a writable folder; run outside the ZIP. Administrator access is not required |
+| Platform | `.cmd` entry points require Windows. Linux/macOS users run `python3 tools/install.py` for the core tools |
+| Network and storage | Core setup downloads the package build dependencies from your configured pip index. Desktop setup also downloads optional packages and Chromium; allow sufficient disk space and network access |
+| Local chat | Separately install and start Ollama, then download a model declaring tool support. Choose it to fit your RAM/VRAM; no universal memory minimum or GPU requirement is claimed |
+| Desktop and GitHub tasks | Desktop control needs the desktop profile and an available Windows desktop session. GitHub tasks also need Git and suitable host-account permissions; these are not configured by the installer |
+
+Successful setup ends with `Installation and verification passed` and `.setup-state.json` containing `ok: true`. If it fails, read `.setup.log`, fix the cause and rerun the installer; do not treat a created `.venv` alone as success.
+
 
 ## Choose a starting point
 
