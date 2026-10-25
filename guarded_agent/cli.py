@@ -16,6 +16,9 @@ def emit(value):
 def main(argv=None):
     parser = argparse.ArgumentParser(description="Guarded Windows actions; use demo for a desktop-free run")
     sub = parser.add_subparsers(dest="command", required=True)
+    doctor = sub.add_parser('doctor', help='Read-only setup check; Ollama network checks are opt-in')
+    doctor.add_argument('--check-ollama', action='store_true')
+    doctor.add_argument('--model', help='Inspect declared tool support for this installed model; no inference')
     web = sub.add_parser("web", help="Open the local Ollama chat and task interface")
     web.add_argument("--port", type=int, default=8765)
     web.add_argument("--data-dir", type=Path)
@@ -54,6 +57,11 @@ def main(argv=None):
         command.add_argument("--call-timeout", type=float, default=Policy().call_timeout)
     args = parser.parse_args(argv)
     try:
+        if args.command == 'doctor':
+            from .doctor import diagnose
+            report = diagnose(args.check_ollama, args.model)
+            emit(report)
+            return 0 if report['ok'] else 2
         if args.command == "web":
             from .web import serve
             if not 1 <= args.port <= 65535:
