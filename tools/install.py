@@ -35,7 +35,8 @@ def checked(command, root, log, env):
     print('Running: ' + subprocess.list2cmdline(command), flush=True)
     log.write('\n$ ' + subprocess.list2cmdline(command) + '\n')
     log.flush()
-    executable = str((root / command[0]).resolve())
+    # Preserve the venv interpreter path: POSIX environments often link to base Python.
+    executable = str(root / command[0])
     subprocess.run([executable, *command[1:]], cwd=root, env=env, stdout=log, stderr=subprocess.STDOUT, check=True)
 
 

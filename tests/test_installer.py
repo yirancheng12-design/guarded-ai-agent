@@ -91,9 +91,11 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(list(self.root.iterdir()), [])
 
     def test_relative_environment_executable_from_another_directory(self):
-        installer.venv.EnvBuilder(with_pip=False).create(self.root / '.venv')
+        installer.venv.EnvBuilder(with_pip=False, symlinks=os.name != 'nt').create(self.root / '.venv')
         with (self.root / 'probe.log').open('w', encoding='utf-8') as log:
-            installer.checked([str(installer.environment_python()), '-c', 'print("environment probe passed")'],
+            probe = ('import pathlib,sys; assert pathlib.Path(sys.prefix).resolve() == '
+                     'pathlib.Path(".venv").resolve(); print("environment probe passed")')
+            installer.checked([str(installer.environment_python()), '-c', probe],
                               self.root, log, os.environ.copy())
         self.assertIn('environment probe passed', (self.root / 'probe.log').read_text())
 
