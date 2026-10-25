@@ -6,6 +6,24 @@
 
 本地模型路径不要求付费模型 API 或 Copilot 订阅，但硬件、存储、电费、模型下载及第三方软件的成本和许可仍需自行考虑。当前网页界面使用中文。
 
+## Windows 一键安装
+
+已安装 Python 3.11+ 后，解压完整仓库，双击 [Install.cmd](Install.cmd) 安装核心程序；需要桌面、浏览器和文档功能时，双击 [Install-Desktop.cmd](Install-Desktop.cmd)。完成验证后双击 `Start-Guarded.cmd`。聊天仍需另行安装并启动 Ollama、选择和下载合适的模型。详见[安装与故障恢复](INSTALL.md)。
+
+### 点击安装前的要求
+
+| 项目 | 具体要求 |
+| --- | --- |
+| Python | 预先安装 Python 3.11+，包含标准 `venv` 模块，并让 `py` 或 `python` 命令可用；安装入口不会自动安装 Python |
+| 文件与权限 | 完整解压或克隆到可写目录，在 ZIP 外运行；不要求管理员权限 |
+| 系统 | 双击 `.cmd` 适用于 Windows；Linux/macOS 使用 `python3 tools/install.py` 安装核心工具 |
+| 网络与磁盘 | 核心安装需要从配置的 pip 软件源下载构建依赖；桌面完整版还下载可选依赖和 Chromium，请预留相应空间并确保网络可用 |
+| 本地聊天 | 另行安装并启动 Ollama，下载声明支持工具调用的模型；按内存/显存选择，没有统一的最低内存或显卡要求承诺 |
+| 桌面与 GitHub 任务 | 桌面控制需要完整版依赖和可用的 Windows 桌面会话；GitHub 任务另需 Git 与宿主账号权限，安装器不会代为登录 |
+
+只有显示 `Installation and verification passed` 且 `.setup-state.json` 中 `ok: true` 才表示安装检查通过。失败请查看 `.setup.log`，修复后重试；不能仅凭 `.venv` 已创建就认为成功。
+
+
 ## 先验证最小安装
 
 克隆或下载仓库，在仓库根目录打开 PowerShell：

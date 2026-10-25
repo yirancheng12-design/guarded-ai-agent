@@ -13,3 +13,7 @@ dist/
 /logs/
 /cache/
 /browsers/
+
+# Local installer reports
+/.setup.log
+/.setup-state.json
