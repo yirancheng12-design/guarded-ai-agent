@@ -8,6 +8,15 @@
 
 Start with a simulation that needs no model or GPU, then add local chat, tool use, browser/document features, or GitHub repository tasks. Hardware, electricity, storage, model downloads, and separately licensed services are still your responsibility.
 
+## Try the public release
+
+[Release / 下载](https://github.com/yirancheng12-design/guarded-ai-agent/releases/latest) · [演示与试用 / Evidence and trial](docs/public-trial.md)
+
+Download the complete source ZIP, follow the installation prerequisites, and inspect the evidence before reporting a result.
+
+![Actual Guarded task](assets/demo-poster.png)
+
+
 ## One-click installation (Windows)
 
 With Python 3.11+ installed, extract the whole repository and double-click [Install.cmd](Install.cmd) for the core app, or [Install-Desktop.cmd](Install-Desktop.cmd) for Windows desktop, browser and document dependencies plus Chromium. After verification, double-click `Start-Guarded.cmd`. Ollama and a suitable model are separate prerequisites for chat. See [installation details and recovery](INSTALL.md).
