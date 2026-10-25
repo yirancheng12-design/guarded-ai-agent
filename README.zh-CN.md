@@ -6,6 +6,11 @@
 
 本地模型路径不要求付费模型 API 或 Copilot 订阅，但硬件、存储、电费、模型下载及第三方软件的成本和许可仍需自行考虑。当前网页界面使用中文。
 
+## Windows 一键安装
+
+已安装 Python 3.11+ 后，解压完整仓库，双击 [Install.cmd](Install.cmd) 安装核心程序；需要桌面、浏览器和文档功能时，双击 [Install-Desktop.cmd](Install-Desktop.cmd)。完成验证后双击 `Start-Guarded.cmd`。聊天仍需另行安装并启动 Ollama、选择和下载合适的模型。详见[安装与故障恢复](INSTALL.md)。
+
+
 ## 先验证最小安装
 
 克隆或下载仓库，在仓库根目录打开 PowerShell：

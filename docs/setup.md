@@ -2,6 +2,8 @@
 
 [Home](../README.md) · [中文入门](../README.zh-CN.md) · [Troubleshooting](troubleshooting.md)
 
+For Windows one-click setup, see [Install.cmd and Install-Desktop.cmd](../INSTALL.md). Both require an installed Python 3.11+; the manual commands below remain available.
+
 ## Choose the smallest working setup
 
 | Goal | Requirements | Install |

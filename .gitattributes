@@ -4,3 +4,7 @@
 *.toml text eol=lf
 *.yml text eol=lf
 *.cmd text eol=crlf
+/Install*.cmd text eol=crlf
+/Run.cmd text eol=crlf
+/tools/install.py text eol=lf
+/tests/test_installer.py text eol=lf
