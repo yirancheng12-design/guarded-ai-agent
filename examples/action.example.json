@@ -1,0 +1,15 @@
+{
+  "operation_id": "calculator-enter-one-001",
+  "window": {"hwnd": 0, "pid": 0, "created": 0},
+  "target": {"automation_id": "REPLACE_WITH_DIGIT_BUTTON_ID"},
+  "kind": "click",
+  "intent": "ensure",
+  "point": [0.5, 0.5],
+  "allow_owned_result": false,
+  "condition": {
+    "selector": {"automation_id": "REPLACE_WITH_RESULT_ELEMENT_ID"},
+    "property": "name",
+    "expected": "REPLACE_WITH_EXACT_EXPECTED_UIA_NAME",
+    "mode": "uia"
+  }
+}

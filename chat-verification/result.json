@@ -1,0 +1,733 @@
+{
+  "finished_utc": "2026-10-22T16:38:43.259101+00:00",
+  "model": "gemma4:26b",
+  "qa_results": [
+    {
+      "mode": "chat",
+      "status": "success",
+      "tools": [],
+      "result": {
+        "outcome": "success",
+        "text": "聊天界面已连接。"
+      },
+      "events": [
+        {
+          "kind": "chat_started",
+          "at": 1792679900.025454
+        }
+      ]
+    },
+    {
+      "mode": "demo",
+      "status": "success",
+      "tools": [
+        null,
+        null
+      ],
+      "result": {
+        "run_id": "c71ddba506b34d299ba664628d956062",
+        "outcome": "success",
+        "reason": "goal_verified_independently",
+        "steps": [
+          {
+            "action_id": "press_1",
+            "result": {
+              "operation_id": "c71ddba506b34d299ba664628d956062:step:0",
+              "execution_status": "sent",
+              "outcome": "success",
+              "reason": "postcondition_stable",
+              "samples": 4,
+              "needs_review": false
+            }
+          },
+          {
+            "action_id": "press_2",
+            "result": {
+              "operation_id": "c71ddba506b34d299ba664628d956062:step:1",
+              "execution_status": "sent",
+              "outcome": "success",
+              "reason": "postcondition_stable",
+              "samples": 4,
+              "needs_review": false
+            }
+          }
+        ]
+      },
+      "events": [
+        {
+          "kind": "activated",
+          "at": 1792680022.4536638
+        },
+        {
+          "kind": "planning",
+          "step": 1,
+          "at": 1792680022.4543405
+        },
+        {
+          "kind": "decision",
+          "decision": "act",
+          "action_id": "press_1",
+          "reason": "First, press 1 as requested.",
+          "at": 1792680025.8290215
+        },
+        {
+          "kind": "executing",
+          "action_id": "press_1",
+          "at": 1792680025.82921
+        },
+        {
+          "kind": "action_result",
+          "action_id": "press_1",
+          "result": {
+            "operation_id": "c71ddba506b34d299ba664628d956062:step:0",
+            "execution_status": "sent",
+            "outcome": "success",
+            "reason": "postcondition_stable",
+            "samples": 4,
+            "needs_review": false
+          },
+          "at": 1792680025.8373835
+        },
+        {
+          "kind": "planning",
+          "step": 2,
+          "at": 1792680025.8381975
+        },
+        {
+          "kind": "decision",
+          "decision": "act",
+          "action_id": "press_2",
+          "reason": "The first step (pressing 1) is complete. Now I need to press 2 to make the display show 12.",
+          "at": 1792680030.7945461
+        },
+        {
+          "kind": "executing",
+          "action_id": "press_2",
+          "at": 1792680030.7947078
+        },
+        {
+          "kind": "action_result",
+          "action_id": "press_2",
+          "result": {
+            "operation_id": "c71ddba506b34d299ba664628d956062:step:1",
+            "execution_status": "sent",
+            "outcome": "success",
+            "reason": "postcondition_stable",
+            "samples": 4,
+            "needs_review": false
+          },
+          "at": 1792680030.8029656
+        },
+        {
+          "kind": "goal_verified",
+          "at": 1792680030.8049598
+        }
+      ]
+    },
+    {
+      "mode": "app",
+      "status": "success",
+      "tools": [],
+      "result": {
+        "app": "微信",
+        "operation_id": "3b69852f71b74f5fb1a72c9ec26aeb65",
+        "samples": [
+          {
+            "sequence": 3,
+            "at": 202653.5100656,
+            "interactive": true,
+            "reason": "",
+            "window": null
+          },
+          {
+            "sequence": 4,
+            "at": 202653.7145626,
+            "interactive": true,
+            "reason": "",
+            "window": null
+          },
+          {
+            "sequence": 5,
+            "at": 202653.918742,
+            "interactive": true,
+            "reason": "",
+            "window": null
+          },
+          {
+            "sequence": 6,
+            "at": 202654.1233517,
+            "interactive": true,
+            "reason": "",
+            "window": null
+          },
+          {
+            "sequence": 7,
+            "at": 202654.3273297,
+            "interactive": true,
+            "reason": "",
+            "window": null
+          },
+          {
+            "sequence": 8,
+            "at": 202654.5321823,
+            "interactive": true,
+            "reason": "",
+            "window": null
+          },
+          {
+            "sequence": 9,
+            "at": 202654.7369747,
+            "interactive": true,
+            "reason": "",
+            "window": null
+          },
+          {
+            "sequence": 10,
+            "at": 202654.9411087,
+            "interactive": true,
+            "reason": "",
+            "window": null
+          },
+          {
+            "sequence": 11,
+            "at": 202655.1462639,
+            "interactive": true,
+            "reason": "",
+            "window": {
+              "identity": {
+                "hwnd": 199736,
+                "pid": 24256,
+                "created": 134371542561695865
+              },
+              "visible": true,
+              "foreground": true,
+              "area": 256802
+            }
+          },
+          {
+            "sequence": 12,
+            "at": 202655.3510868,
+            "interactive": true,
+            "reason": "",
+            "window": {
+              "identity": {
+                "hwnd": 199736,
+                "pid": 24256,
+                "created": 134371542561695865
+              },
+              "visible": true,
+              "foreground": true,
+              "area": 256802
+            }
+          },
+          {
+            "sequence": 13,
+            "at": 202655.5549713,
+            "interactive": true,
+            "reason": "",
+            "window": {
+              "identity": {
+                "hwnd": 199736,
+                "pid": 24256,
+                "created": 134371542561695865
+              },
+              "visible": true,
+              "foreground": true,
+              "area": 256802
+            }
+          }
+        ],
+        "outcome": "success",
+        "text": "已打开微信，已连续 3 次确认应用窗口可见。",
+        "foreground": true,
+        "execution_status": "sent",
+        "reason": "process_created",
+        "pid": 24256
+      },
+      "events": [
+        {
+          "kind": "opening_app",
+          "app": "微信",
+          "at": 1792680656.1587627
+        }
+      ]
+    },
+    {
+      "mode": "work",
+      "status": "completed",
+      "tools": [
+        "write_file",
+        "read_file",
+        "run_command"
+      ],
+      "result": {
+        "outcome": "completed",
+        "text": "任务已完成：\n\n1.  **创建文件**：已在工作文件夹创建 `hello_guarded.py`，内容为 `print('Guarded tool test OK')`。\n2.  **读取确认**：通过 `read_file` 确认文件内容正确，SHA256 为 `b14a2d8480fc833ee8dded5faf3adfd6114325b76bdaa66dbd2286d1449f6064`。\n3.  **运行并检查**：使用指定的 Python 解释器运行该文件，输出结果为 `Guarded tool test OK`，运行成功（exit_code: 0）。",
+        "steps": [
+          {
+            "tool": "write_file",
+            "arguments": {
+              "content": "print('Guarded tool test OK')\n",
+              "expected_sha256": "",
+              "path": "hello_guarded.py"
+            },
+            "result": {
+              "outcome": "success",
+              "path": "hello_guarded.py",
+              "bytes": 30,
+              "sha256": "b14a2d8480fc833ee8dded5faf3adfd6114325b76bdaa66dbd2286d1449f6064",
+              "backup": null
+            }
+          },
+          {
+            "tool": "read_file",
+            "arguments": {
+              "path": "hello_guarded.py"
+            },
+            "result": {
+              "path": "hello_guarded.py",
+              "sha256": "b14a2d8480fc833ee8dded5faf3adfd6114325b76bdaa66dbd2286d1449f6064",
+              "total_lines": 1,
+              "start_line": 1,
+              "text": "print('Guarded tool test OK')",
+              "truncated": false
+            }
+          },
+          {
+            "tool": "run_command",
+            "arguments": {
+              "command": "D:\\codex外部聊天\\2026-10-20\\1-visual-tolerance-1-multi-frame\\work\\.venv\\Scripts\\python.exe hello_guarded.py"
+            },
+            "result": {
+              "outcome": "success",
+              "exit_code": 0,
+              "output": "Guarded tool test OK\r\n",
+              "log": "D:\\codex外部聊天\\2026-10-20\\1-visual-tolerance-1-multi-frame\\work\\chat-ui-qa\\commands\\18786dd607f84ad28fcb0ca0db681eff\\3.txt",
+              "reason": ""
+            }
+          }
+        ],
+        "artifacts": [
+          {
+            "path": "hello_guarded.py",
+            "absolute_path": "D:\\codex外部聊天\\2026-10-20\\1-visual-tolerance-1-multi-frame\\work\\chat-ui-qa\\workspace\\hello_guarded.py"
+          }
+        ],
+        "workspace": "D:\\codex外部聊天\\2026-10-20\\1-visual-tolerance-1-multi-frame\\work\\chat-ui-qa\\workspace"
+      },
+      "events": [
+        {
+          "kind": "work_planning",
+          "step": 1,
+          "at": 1792682366.8815708
+        },
+        {
+          "kind": "tool_started",
+          "tool": "write_file",
+          "at": 1792682391.8127542
+        },
+        {
+          "kind": "tool_result",
+          "tool": "write_file",
+          "outcome": "success",
+          "at": 1792682391.8176403
+        },
+        {
+          "kind": "work_planning",
+          "step": 2,
+          "at": 1792682391.817673
+        },
+        {
+          "kind": "tool_started",
+          "tool": "read_file",
+          "at": 1792682394.8192437
+        },
+        {
+          "kind": "tool_result",
+          "tool": "read_file",
+          "outcome": "success",
+          "at": 1792682394.822628
+        },
+        {
+          "kind": "work_planning",
+          "step": 3,
+          "at": 1792682394.8226733
+        },
+        {
+          "kind": "tool_started",
+          "tool": "run_command",
+          "at": 1792682398.2313175
+        },
+        {
+          "kind": "approval_decision",
+          "allowed": true,
+          "title": "运行命令",
+          "at": 1792682536.816072
+        },
+        {
+          "kind": "tool_result",
+          "tool": "run_command",
+          "outcome": "success",
+          "at": 1792682537.4470494
+        },
+        {
+          "kind": "work_planning",
+          "step": 4,
+          "at": 1792682537.4470842
+        }
+      ]
+    },
+    {
+      "mode": "work",
+      "status": "completed",
+      "tools": [
+        "search_web",
+        "fetch_url",
+        "fetch_url"
+      ],
+      "result": {
+        "outcome": "completed",
+        "text": "1. Python 官方文档链接：https://docs.python.org/zh-cn/\n2. https://example.com 的概括：这是一个专门用于文档示例、无需许可即可使用的示例域名。",
+        "steps": [
+          {
+            "tool": "search_web",
+            "arguments": {
+              "query": "Python official documentation"
+            },
+            "result": {
+              "query": "Python official documentation",
+              "results": [
+                {
+                  "title": "Welcome to Python.org",
+                  "url": "https://www.python.org/",
+                  "snippet": "The mission of the Python Software Foundation is to promote, protect, and advance the Python programming language, and to support and facilitate the growth of a diverse and international community of Python programmers."
+                },
+                {
+                  "title": "Download Python | Python.org",
+                  "url": "https://www.python.org/downloads/",
+                  "snippet": "Starting with the Python 3.11.0, Python 3.10.7, and Python 3.9.14 releases, CPython release artifacts are signed with Sigstore. See our dedicated Sigstore Information page for how it works."
+                },
+                {
+                  "title": "欢迎来到 Python.org - Python 编程语言",
+                  "url": "https://pythonlang.cn/",
+                  "snippet": "快速 & 易于学习 任何其他语言的有经验的程序员都可以非常快速地掌握 Python，而初学者会发现其简洁的语法和缩进结构易于学习。 通过我们的 Python 3 概述来开开胃吧。 Python 是一种能让你快速工作 并更有效地集成系统的编程语言。 了解更多"
+                },
+                {
+                  "title": "Python 基础教程 | 菜鸟教程",
+                  "url": "https://www.runoob.com/python/python-tutorial.html",
+                  "snippet": "Python 基础教程 Python 是一种解释型、面向对象、动态数据类型的高级程序设计语言。 Python 由 Guido van Rossum 于 1989 年底发明，第一个公开发行版发行于 1991 年。 像 Perl 语言一样, Python 源代码同样遵循 GPL (GNU General Public License) 协议。"
+                },
+                {
+                  "title": "简介 - Python教程 - 廖雪峰的官方网站",
+                  "url": "https://www.liaoxuefeng.com/wiki/1016959663602400",
+                  "snippet": "简介 廖雪峰 资深软件开发工程师，业余马拉松选手。 这是小白的Python新手教程，具有如下特点： 中文，免费，零起点，完整示例，基于最新的Python 3版本。 Python是一种计算机程序设计语言。"
+                },
+                {
+                  "title": "Python 3.15.0 文档",
+                  "url": "https://docs.python.org/zh-cn/",
+                  "snippet": "Python 开发者指南 有关如何为 Python 做贡献的信息 Python 打包用户指南 与 Python 打包有关的资源 音频/视频讲座 来自社区的播客、音频和视频 Python 增强提议 对 Python 进行改进的提议索引 Python 中的静态类型 有关 Python 类型安全的信息和指南"
+                },
+                {
+                  "title": "下载 Python | Python.org - Python 编程语言",
+                  "url": "https://pythonlang.cn/downloads/",
+                  "snippet": "从 python.org 下载的适用于 macOS 的 Python 安装包使用 Apple Developer ID Installer 证书进行签名。 自 Python 3.11.4 和 3.12.0b1（2023-05-23）起，发布的安装包使用颁发给 Python 软件基金会的证书（Apple Developer ID BMM5U3QVKW）进行签名。"
+                },
+                {
+                  "title": "Python3 教程 | 菜鸟教程",
+                  "url": "https://www.runoob.com/python3/python3-tutorial.html",
+                  "snippet": "Python 的 3.0 版本，常被称为 Python 3000，或简称 Py3k。 相对于 Python 的早期版本，这是一个较大的升级。 为了不带入过多的累赘，Python 3.0 在设计的时候没有考虑向下兼容。 Python 介绍及安装教程我们在 Python 2.X 版本的教程 中已有介绍，这里就不再赘述。"
+                }
+              ],
+              "outcome": "success"
+            }
+          },
+          {
+            "tool": "fetch_url",
+            "arguments": {
+              "url": "https://example.com"
+            },
+            "result": {
+              "outcome": "failed",
+              "error": "TimeoutError: timed out"
+            }
+          },
+          {
+            "tool": "fetch_url",
+            "arguments": {
+              "url": "https://example.com"
+            },
+            "result": {
+              "url": "https://example.com",
+              "text": "Example Domain\nThis domain is for use in documentation examples without needing permission. This is not a service; avoid relying on it for testing and monitoring purposes.",
+              "content_type": "text/html; charset=utf-8",
+              "links": []
+            }
+          }
+        ],
+        "artifacts": [],
+        "workspace": "D:\\codex外部聊天\\2026-10-20\\1-visual-tolerance-1-multi-frame\\work\\chat-ui-qa\\workspace"
+      },
+      "events": [
+        {
+          "kind": "work_planning",
+          "step": 1,
+          "at": 1792684628.2005835
+        },
+        {
+          "kind": "tool_started",
+          "tool": "search_web",
+          "input": "Python official documentation",
+          "at": 1792684651.585807
+        },
+        {
+          "kind": "tool_result",
+          "tool": "search_web",
+          "outcome": "success",
+          "at": 1792684652.0922337
+        },
+        {
+          "kind": "work_planning",
+          "step": 2,
+          "at": 1792684652.0922863
+        },
+        {
+          "kind": "tool_started",
+          "tool": "fetch_url",
+          "input": "https://example.com",
+          "at": 1792684658.703892
+        },
+        {
+          "kind": "tool_result",
+          "tool": "fetch_url",
+          "outcome": "failed",
+          "at": 1792684673.7175398
+        },
+        {
+          "kind": "work_planning",
+          "step": 3,
+          "at": 1792684673.7175775
+        },
+        {
+          "kind": "tool_started",
+          "tool": "fetch_url",
+          "input": "https://example.com",
+          "at": 1792684680.487185
+        },
+        {
+          "kind": "tool_result",
+          "tool": "fetch_url",
+          "outcome": "success",
+          "at": 1792684681.8340113
+        },
+        {
+          "kind": "work_planning",
+          "step": 4,
+          "at": 1792684681.8340456
+        }
+      ]
+    },
+    {
+      "mode": "work",
+      "status": "cancelled",
+      "result": {
+        "outcome": "cancelled",
+        "text": "用户未允许这次操作，已停止。",
+        "steps": [
+          {
+            "tool": "search_web",
+            "arguments": {
+              "query": "Python official documentation"
+            },
+            "result": {
+              "url": "https://www.bing.com/search?format=rss&q=Python%20official%20documentation",
+              "redirect_url": "https://cn.bing.com/search?format=rss&q=Python%20official%20documentation",
+              "text": "网页跳转到另一个网站，请单独请求该链接。"
+            }
+          },
+          {
+            "tool": "search_web",
+            "arguments": {
+              "query": "Python official documentation site:python.org"
+            },
+            "result": {
+              "url": "https://www.bing.com/search?format=rss&q=Python%20official%20documentation%20site%3Apython.org",
+              "redirect_url": "https://cn.bing.com/search?format=rss&q=Python%20official%20documentation%20site%3Apython.org",
+              "text": "网页跳转到另一个网站，请单独请求该链接。"
+            }
+          }
+        ],
+        "artifacts": [],
+        "workspace": "D:\\codex外部聊天\\2026-10-20\\1-visual-tolerance-1-multi-frame\\work\\chat-ui-qa\\workspace"
+      },
+      "events": [
+        {
+          "kind": "work_planning",
+          "step": 1,
+          "at": 1792682731.7347724
+        },
+        {
+          "kind": "tool_started",
+          "tool": "search_web",
+          "at": 1792682735.963549
+        },
+        {
+          "kind": "approval_decision",
+          "allowed": true,
+          "title": "搜索网页",
+          "at": 1792682898.8980477
+        },
+        {
+          "kind": "tool_result",
+          "tool": "search_web",
+          "outcome": "success",
+          "at": 1792682899.141528
+        },
+        {
+          "kind": "work_planning",
+          "step": 2,
+          "at": 1792682899.141565
+        },
+        {
+          "kind": "tool_started",
+          "tool": "search_web",
+          "at": 1792682902.3097603
+        },
+        {
+          "kind": "approval_decision",
+          "allowed": true,
+          "title": "搜索网页",
+          "at": 1792683156.2587495
+        },
+        {
+          "kind": "tool_result",
+          "tool": "search_web",
+          "outcome": "success",
+          "at": 1792683156.4737434
+        },
+        {
+          "kind": "work_planning",
+          "step": 3,
+          "at": 1792683156.4737763
+        },
+        {
+          "kind": "tool_started",
+          "tool": "search_web",
+          "at": 1792683159.4880888
+        },
+        {
+          "kind": "approval_decision",
+          "allowed": false,
+          "title": "搜索网页",
+          "at": 1792683486.7343097
+        }
+      ]
+    }
+  ],
+  "production_file_check": {
+    "result": {
+      "outcome": "completed",
+      "text": "文件已成功创建并验证。\n\n文件位置：`C:\\Users\\ROG\\Desktop\\Guarded 工作区\\使用示例.txt`",
+      "steps": [
+        {
+          "tool": "write_file",
+          "arguments": {
+            "content": "1. 创建和修改文本或代码文件；\n2. 搜索公开网页并附来源链接；\n3. 打开微信。",
+            "expected_sha256": "",
+            "path": "使用示例.txt"
+          },
+          "result": {
+            "outcome": "success",
+            "path": "使用示例.txt",
+            "bytes": 104,
+            "sha256": "2fb8ed7ea588bac26a8082d7a4ab9e1e5730d41a18545667cc8364d779b2f509",
+            "backup": null
+          }
+        },
+        {
+          "tool": "read_file",
+          "arguments": {
+            "path": "使用示例.txt"
+          },
+          "result": {
+            "path": "使用示例.txt",
+            "sha256": "2fb8ed7ea588bac26a8082d7a4ab9e1e5730d41a18545667cc8364d779b2f509",
+            "total_lines": 3,
+            "start_line": 1,
+            "text": "1. 创建和修改文本或代码文件；\n2. 搜索公开网页并附来源链接；\n3. 打开微信。",
+            "truncated": false
+          }
+        }
+      ],
+      "artifacts": [
+        {
+          "path": "使用示例.txt",
+          "absolute_path": "C:\\Users\\ROG\\Desktop\\Guarded 工作区\\使用示例.txt"
+        }
+      ],
+      "workspace": "C:\\Users\\ROG\\Desktop\\Guarded 工作区"
+    },
+    "events": [
+      {
+        "kind": "work_planning",
+        "step": 1,
+        "at": 1792686661.498654
+      },
+      {
+        "kind": "tool_started",
+        "tool": "write_file",
+        "input": "使用示例.txt",
+        "at": 1792686668.2186015
+      },
+      {
+        "kind": "tool_result",
+        "tool": "write_file",
+        "outcome": "success",
+        "at": 1792686668.2254388
+      },
+      {
+        "kind": "work_planning",
+        "step": 2,
+        "at": 1792686668.2254736
+      },
+      {
+        "kind": "tool_started",
+        "tool": "read_file",
+        "input": "使用示例.txt",
+        "at": 1792686672.2862542
+      },
+      {
+        "kind": "tool_result",
+        "tool": "read_file",
+        "outcome": "success",
+        "at": 1792686672.2891068
+      },
+      {
+        "kind": "work_planning",
+        "step": 3,
+        "at": 1792686672.2891436
+      }
+    ]
+  },
+  "production_url": "http://127.0.0.1:8765/",
+  "workspace": "C:\\Users\\ROG\\Desktop\\Guarded 工作区",
+  "desktop_shortcut": "C:\\Users\\ROG\\Desktop\\Guarded 聊天助手.lnk",
+  "native_ui_evidence": "native-work-agent/result.json",
+  "desktop_launcher_check": {
+    "exit_code": 0,
+    "second_launch_reuses_server": true,
+    "exclusive_port_regression_tests": true
+  },
+  "wegame": {
+    "status": "skipped_at_user_request",
+    "last_windows_error": 1223,
+    "note": "Normal Windows launch reached system permission flow; user cancelled, then requested skipping WeGame."
+  },
+  "ui_checks": [
+    "Ollama connected",
+    "streaming reply",
+    "approval allowed and cancelled",
+    "saved conversation survives reload",
+    "workspace saved",
+    "production UI creates and reads Chinese filename"
+  ]
+}

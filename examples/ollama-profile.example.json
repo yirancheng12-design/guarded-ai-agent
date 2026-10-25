@@ -1,0 +1,33 @@
+{
+  "window": {"hwnd": 0, "pid": 0, "created": 0},
+  "goal": {
+    "selector": {"automation_id": "REPLACE_RESULT_ID"},
+    "property": "name",
+    "expected": "REPLACE_EXACT_RESULT_NAME_FOR_12",
+    "mode": "uia"
+  },
+  "actions": {
+    "press_1": {
+      "target": {"automation_id": "REPLACE_DIGIT_1_ID"},
+      "kind": "click",
+      "intent": "ensure",
+      "condition": {
+        "selector": {"automation_id": "REPLACE_RESULT_ID"},
+        "property": "name",
+        "expected": "REPLACE_EXACT_RESULT_NAME_FOR_1",
+        "mode": "uia"
+      }
+    },
+    "press_2": {
+      "target": {"automation_id": "REPLACE_DIGIT_2_ID"},
+      "kind": "click",
+      "intent": "ensure",
+      "condition": {
+        "selector": {"automation_id": "REPLACE_RESULT_ID"},
+        "property": "name",
+        "expected": "REPLACE_EXACT_RESULT_NAME_FOR_12",
+        "mode": "uia"
+      }
+    }
+  }
+}
