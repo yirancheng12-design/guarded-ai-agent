@@ -1,6 +1,6 @@
-# Guarded — a local AI work agent
+# Guarded AI Agent
 
-[![Portable checks](https://github.com/yirancheng12-design/how-free-ai-agent-set-up/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/yirancheng12-design/how-free-ai-agent-set-up/actions/workflows/verify.yml)
+[![Portable checks](https://github.com/yirancheng12-design/guarded-ai-agent/actions/workflows/verify.yml/badge.svg?branch=main)](https://github.com/yirancheng12-design/guarded-ai-agent/actions/workflows/verify.yml)
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 

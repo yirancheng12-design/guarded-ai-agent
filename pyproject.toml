@@ -18,9 +18,9 @@ assistant = ["playwright==1.64.1", "pypdf==6.21.2", "python-docx==1.2.0", "openp
 guarded-agent = "guarded_agent.cli:main"
 
 [project.urls]
-Repository = "https://github.com/yirancheng12-design/how-free-ai-agent-set-up"
-Issues = "https://github.com/yirancheng12-design/how-free-ai-agent-set-up/issues"
-Documentation = "https://github.com/yirancheng12-design/how-free-ai-agent-set-up/blob/main/docs/setup.md"
+Repository = "https://github.com/yirancheng12-design/guarded-ai-agent"
+Issues = "https://github.com/yirancheng12-design/guarded-ai-agent/issues"
+Documentation = "https://github.com/yirancheng12-design/guarded-ai-agent/blob/main/docs/setup.md"
 
 [tool.setuptools.packages.find]
 include = ["guarded_agent*"]
