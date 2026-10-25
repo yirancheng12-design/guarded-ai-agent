@@ -72,4 +72,4 @@ class SetupTests(unittest.TestCase):
             root = Path(directory)
             (root / 'browsers').mkdir()
             launcher.configure_environment(root)
-            self.assertEqual(os.environ['PLAYWRIGHT_BROWSERS_PATH'], str(root / 'browsers'))
+            self.assertTrue(Path(os.environ['PLAYWRIGHT_BROWSERS_PATH']).samefile(root / 'browsers'))
