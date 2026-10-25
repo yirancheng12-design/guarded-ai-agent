@@ -1,0 +1,12 @@
+{
+  "task": "Create hello.py, run it, and read it back",
+  "model": "gemma4:26b",
+  "recorded_outcome": "completed",
+  "recorded_command": "python hello.py",
+  "recorded_stdout": "Hello GitHub",
+  "independent_stdout": "Hello GitHub",
+  "file_content": "print(\"Hello GitHub\")\n",
+  "sha256": "69adf9e94422d576a883c36a134ada74e687f58a62a9d5fe1b5e4d87b3a7f10e",
+  "task_seconds": 29.156,
+  "scope": "One Windows run with a locally installed model; not a model-quality benchmark."
+}
