@@ -4,15 +4,22 @@ import os
 import sys
 import traceback
 
-def main():
-    ROOT = Path(__file__).resolve().parent.parent
+def configure_environment(root=None):
+    # In a checkout this launcher lives at the repository root, not app/.
+    ROOT = Path(root or Path(__file__).resolve().parent).resolve()
     for name in ('data', 'workspace', 'logs', 'cache/tmp'):
         (ROOT / name).mkdir(parents=True, exist_ok=True)
-    os.environ['PLAYWRIGHT_BROWSERS_PATH'] = str(ROOT / 'browsers')
+    if 'PLAYWRIGHT_BROWSERS_PATH' not in os.environ and (ROOT / 'browsers').is_dir():
+        os.environ['PLAYWRIGHT_BROWSERS_PATH'] = str(ROOT / 'browsers')
     os.environ['TEMP'] = os.environ['TMP'] = str(ROOT / 'cache/tmp')
     os.environ['PYTHONUTF8'] = '1'
     os.environ['PIP_CACHE_DIR'] = str(ROOT / 'cache/pip')
-    os.chdir(Path(__file__).resolve().parent)
+    return ROOT
+
+
+def main():
+    ROOT = configure_environment()
+    os.chdir(ROOT)
     log = (ROOT / 'logs/chat.log').open('a', encoding='utf-8', buffering=1)
     sys.stdout = sys.stderr = log
 

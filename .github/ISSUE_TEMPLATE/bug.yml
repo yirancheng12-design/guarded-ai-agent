@@ -1,0 +1,23 @@
+name: Setup or execution problem
+description: Report a reproducible problem without uploading private session data.
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, installation command, optional features, and sanitized doctor output.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction and error excerpt
+      description: Include the exact command and relevant output. Do not upload credentials, chat databases, or unrelated private files.
+    validations:
+      required: true

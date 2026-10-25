@@ -72,6 +72,13 @@ class GitHubTools:
             raise RuntimeError(('Git 操作失败：' + result.stderr.strip())[:2000])
         return result.stdout.strip()
 
+    def _github_head(self, folder):
+        result = self._github_process(['--no-pager', '-C', str(folder), 'rev-parse', '--verify', 'HEAD'])
+        if result.returncode == 0: return result.stdout.strip()
+        # _github_binding already verifies that this is a repository root.
+        self._git(folder, 'symbolic-ref', 'HEAD')
+        return None
+
     def _github_binding(self, path):
         folder = self._repo_path(path)
         if Path(self._git(folder, 'rev-parse', '--show-toplevel')).resolve() != folder:
@@ -84,10 +91,12 @@ class GitHubTools:
         return folder, repo, branch
 
     def _github_snapshot(self, folder):
-        tracked = self._git(folder, 'diff', '--name-only', '-z', 'HEAD').split('\0')
+        head = self._github_head(folder)
+        tracked = (self._git(folder, 'diff', '--name-only', '-z', 'HEAD') if head else
+                   self._git(folder, 'ls-files', '--cached', '-z')).split('\0')
         new = self._git(folder, 'ls-files', '--others', '--exclude-standard', '-z').split('\0')
         files = sorted(set(filter(None, tracked + new)))
-        digest = sha256(self._git(folder, 'rev-parse', 'HEAD').encode())
+        digest = sha256((head or 'unborn').encode())
         for name in files:
             # Credential-path protection also applies in full-access mode.
             relative = str((folder / name).relative_to(self.root))
@@ -114,10 +123,12 @@ class GitHubTools:
     def github_status(self, path):
         folder, repo, branch = self._github_binding(path)
         files, snapshot = self._github_snapshot(folder)
+        head = self._github_head(folder)
         return {'outcome': 'success', 'repository': repo, 'path': path, 'branch': branch,
-                'head': self._git(folder, 'rev-parse', 'HEAD'), 'files': files, 'snapshot': snapshot,
+                'head': head, 'files': files, 'snapshot': snapshot,
+                'empty_repository': head is None,
                 'publication': self._github_publication(repo, branch),
-                'diff_stat': self._git(folder, 'diff', '--stat', 'HEAD'),
+                'diff_stat': self._git(folder, 'diff', '--stat', *(['HEAD'] if head else ['--cached'])),
                 'publish_branch': branch.startswith('guarded/')}
 
     def github_run_tests(self, path, command):
@@ -141,6 +152,8 @@ class GitHubTools:
         from .work_tools import WorkTools
         folder, repo, branch = self._github_binding(path)
         if not branch.startswith('guarded/'): raise ValueError('仅发布 guarded/ 独立分支，不修改主分支')
+        if not self._github_head(folder):
+            raise ValueError('仓库尚无首次提交；创建 PR 前需要先建立默认分支，不会自动发布初始提交')
         previous = self._github_publication(repo, branch)
         if previous:
             return {'outcome': 'unknown' if previous[0] == 'pending' else 'failed',
