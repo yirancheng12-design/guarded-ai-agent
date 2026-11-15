@@ -35,7 +35,7 @@ class PlanningBoundaryTests(unittest.TestCase):
     def test_model_finishing_at_deadline_cannot_dispatch(self):
         result = self.run_response({'message': {'tool_calls': [call('open_app')]}},
                                    on_request=lambda: setattr(self, 'now', 30))
-        self.assertIn(result['outcome'], {'unknown', 'incomplete'})
+        self.assertEqual(result['outcome'], 'incomplete')
         self.tools.execute.assert_not_called()
 
     def test_slow_first_tool_prevents_second_dispatch(self):

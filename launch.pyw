@@ -14,6 +14,7 @@ def configure_environment(root=None):
     os.environ['TEMP'] = os.environ['TMP'] = str(ROOT / 'cache/tmp')
     os.environ['PYTHONUTF8'] = '1'
     os.environ['PIP_CACHE_DIR'] = str(ROOT / 'cache/pip')
+    os.environ['GUARDED_INSTALL_ROOT'] = str(ROOT)
     return ROOT
 
 
@@ -24,8 +25,15 @@ def main():
     sys.stdout = sys.stderr = log
 
     try:
-        from guarded_agent.web import serve
-        serve(directory=ROOT / 'data', open_browser=True)
+        from importlib.util import find_spec
+
+        server_only = '--server-only' in sys.argv
+        if os.name == 'nt' and not server_only and '--browser' not in sys.argv and find_spec('webview'):
+            from guarded_agent.desktop_app import run
+            run(ROOT)
+        else:
+            from guarded_agent.web import serve
+            serve(directory=ROOT / 'data', open_browser=not server_only)
     except Exception:
         traceback.print_exc()
         if os.name == 'nt':

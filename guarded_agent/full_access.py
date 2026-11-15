@@ -1,6 +1,7 @@
-"""Explicit, host-owned access to local files under the Windows user's ACLs."""
+"""Explicit, host-owned access to local files under the user's OS permissions."""
 from pathlib import Path
 from types import SimpleNamespace
+import os
 import re
 
 
@@ -10,10 +11,10 @@ def local_path(root, value, allow_root=False):
     if value.startswith(('\\\\', '//')) or ':' in value[2:]:
         raise ValueError('不支持网络共享、设备路径或备用数据流')
     candidate = (Path(root) / value).resolve()
-    if not re.fullmatch(r'[A-Za-z]:\\', candidate.anchor):
+    if os.name == 'nt' and not re.fullmatch(r'[A-Za-z]:\\', candidate.anchor):
         raise ValueError('需要本机磁盘路径')
     from .work_tools import WorkTools
-    # Reuse credential and canonical-path checks with this local drive as root.
+    # Reuse credential and canonical-path checks from the filesystem root.
     drive = Path(candidate.anchor)
     return WorkTools.path(SimpleNamespace(root=drive), str(candidate.relative_to(drive)), allow_root=allow_root)
 

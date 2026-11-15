@@ -1,11 +1,14 @@
 """Loopback-only chat UI, served without third-party web dependencies."""
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlsplit, parse_qs
+from urllib.parse import urlsplit, parse_qs, unquote
+import mimetypes
 import json
 import os
 import secrets
 import socket
+import re
+import threading
 import webbrowser
 from .chat_service import Controller, BusyError
 from . import __version__
@@ -41,7 +44,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header('Cache-Control', 'no-store')
         self.send_header('X-Content-Type-Options', 'nosniff')
         self.send_header('Referrer-Policy', 'no-referrer')
-        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
+        self.send_header('Content-Security-Policy', "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; media-src 'self'; frame-src 'self' http://127.0.0.1:8775; frame-ancestors 'none'; base-uri 'none'; form-action 'self'")
         self.end_headers()
         try:
             self.wfile.write(raw)
@@ -70,16 +73,56 @@ class Handler(BaseHTTPRequestHandler):
         try:
             if url.path == '/health':
                 return self.respond(200, {'app': 'guarded-chat', 'version': 1, 'release': __version__})
-            if url.path in {'/', '/app.js', '/style.css'}:
+            if url.path.startswith(('/boot-suite/', '/dsh-startup/')):
+                root = (ASSETS / 'boot-suite').resolve()
+                relative = unquote(url.path)
+                if relative.startswith('/boot-suite/'):
+                    relative = relative[len('/boot-suite/'):]
+                elif relative.startswith('/dsh-startup/template-asset/'):
+                    parts = relative[len('/dsh-startup/template-asset/'):].split('/', 1)
+                    if len(parts) != 2:
+                        return self.respond(404, {'error': '素材不存在'})
+                    relative = 'templates/' + parts[0] + '/assets/' + parts[1]
+                elif relative.startswith('/dsh-startup/asset/'):
+                    relative = 'lib/assets/' + relative[len('/dsh-startup/asset/'):]
+                elif relative == '/dsh-startup/splash.js':
+                    relative = 'lib/splash.js'
+                else:
+                    return self.respond(404, {'error': '素材不存在'})
+                asset = (root / relative).resolve()
+                if not asset.is_relative_to(root) or not asset.is_file() or asset.suffix.lower() not in {'.js', '.css', '.json', '.jpg', '.png', '.mp3', '.wav', '.mp4'}:
+                    return self.respond(404, {'error': '素材不存在'})
+                mime = {'.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json'}.get(asset.suffix.lower()) or mimetypes.guess_type(asset.name)[0] or 'application/octet-stream'
+                return self.respond(200, asset.read_bytes(), mime)
+            if url.path in {'/', '/app.js', '/style.css', '/guarded-cover.webp', '/cover-motion.js', '/cover-motion.css', '/boot-suite-adapter.js', '/boot-suite-adapter.css'}:
                 filename, mime = {'/': ('index.html', 'text/html'), '/app.js': ('app.js', 'text/javascript'),
-                                  '/style.css': ('style.css', 'text/css')}[url.path]
-                raw = (ASSETS / filename).read_bytes().replace(b'__GUARDED_TOKEN__', self.server.token.encode())
-                return self.respond(200, raw, mime + '; charset=utf-8')
+                                  '/style.css': ('style.css', 'text/css'),
+                                  '/guarded-cover.webp': ('guarded-cover.webp', 'image/webp'),
+                                  '/cover-motion.js': ('cover-motion.js', 'text/javascript'),
+                                  '/cover-motion.css': ('cover-motion.css', 'text/css'),
+                                  '/boot-suite-adapter.js': ('boot-suite-adapter.js', 'text/javascript'),
+                                  '/boot-suite-adapter.css': ('boot-suite-adapter.css', 'text/css')}[url.path]
+                raw = (ASSETS / filename).read_bytes()
+                if url.path == '/':
+                    raw = raw.replace(b'__GUARDED_TOKEN__', self.server.token.encode())
+                return self.respond(200, raw, mime if mime.startswith('image/') else mime + '; charset=utf-8')
             if url.path == '/api/state':
                 conversation = parse_qs(url.query).get('conversation', [None])[0]
                 return self.respond(200, self.server.controller.state(conversation))
             if url.path == '/api/models':
                 return self.respond(200, {'models': self.server.controller.models()})
+            if url.path == '/api/harness':
+                from .harness_runtime import status
+                return self.respond(200, status())
+            if url.path == '/api/native-animation/status':
+                from .harness_runtime import native_animation_status
+                return self.respond(200, native_animation_status())
+            if url.path == '/api/native-animation-content':
+                with self.server.animation_lock:
+                    payload = dict(self.server.animation_payload)
+                return self.respond(200, payload)
+            if url.path == '/api/evolution':
+                return self.respond(200,self.server.controller.evolution.status())
             if url.path == '/api/projects':
                 return self.respond(200, {'projects': self.server.controller.projects()})
             if url.path == '/api/changes':
@@ -95,6 +138,12 @@ class Handler(BaseHTTPRequestHandler):
         if not self.authorized(api=True):
             return
         try:
+            if urlsplit(self.path).path == '/dsh-startup/diag':
+                length = int(self.headers.get('Content-Length', '0'))
+                if not 0 <= length <= 4096 or self.headers.get('Transfer-Encoding'):
+                    return self.respond(400, {'error': '请求大小无效'})
+                self.rfile.read(length)
+                return self.respond(204, b'')
             if self.headers.get('Content-Type', '').split(';')[0].strip() != 'application/json':
                 raise ValueError('需要 JSON 请求')
             length = int(self.headers.get('Content-Length', '0'))
@@ -106,11 +155,34 @@ class Handler(BaseHTTPRequestHandler):
                 raise ValueError('需要 JSON 对象')
             c = self.server.controller
             path = urlsplit(self.path).path
-            if path == '/api/conversations':
+            if path == '/api/native-animation-content':
+                lines = data.get('lines', [])
+                if not isinstance(lines, list):
+                    raise ValueError('动画内容格式无效')
+                clean = lambda value, limit: re.sub(r'[\x00-\x1f]+', ' ', value).strip()[:limit] if isinstance(value, str) else ''
+                payload = {'title': clean(data.get('title', ''), 100) or '完整工作台实时演算',
+                           'source': clean(data.get('source', ''), 100) or '等待工作台会话内容',
+                           'lines': [clean(value, 240) for value in lines if isinstance(value, str)][-48:]}
+                with self.server.animation_lock:
+                    self.server.animation_payload = payload
+                result = {'ok': True}
+            elif path == '/api/native-animation/open':
+                from .harness_runtime import start_native_animation
+                result = start_native_animation(self.server.token, self.server.server_port)
+            elif path == '/api/evolution/settings':
+                result = c.evolution.configure(data.get('learning'),data.get('repair'))
+            elif path == '/api/evolution/check':
+                result = c.evolution.start(data.get('model'))
+            elif path == '/api/evolution/rollback':
+                result = c.evolution.rollback()
+            elif path == '/api/conversations':
                 result = {'id': c.create_conversation(data.get('workspace'))}
+            elif path == '/api/harness/open':
+                from .harness_runtime import open_workbench
+                result = open_workbench()
             elif path == '/api/send':
                 result = {'id': c.send(data.get('conversation'), data.get('text'), data.get('model'),
-                                      data.get('mode', 'chat'), data.get('profile_id'))}
+                                      data.get('mode', 'chat'), data.get('profile_id'), thinking=data.get('thinking', False))}
             elif path == '/api/cancel':
                 c.cancel(data.get('id'))
                 result = {'ok': True}
@@ -152,8 +224,17 @@ class Handler(BaseHTTPRequestHandler):
 def make_server(directory, port=8765, controller=None):
     server = LocalHTTPServer(('127.0.0.1', port), Handler)
     server.token = secrets.token_urlsafe(32)
+    server.animation_lock = threading.Lock()
+    server.animation_payload = {'title': '完整工作台实时演算', 'source': '等待工作台会话内容',
+                                'lines': ['等待当前任务产生可见记录']}
     try:
         server.controller = controller or Controller(directory)
+        server.restart_requested = False
+        def restart():
+            import threading
+            server.restart_requested = True
+            threading.Thread(target=server.shutdown,daemon=True).start()
+        server.controller.evolution.on_restart = restart
     except Exception:
         server.server_close()
         raise
@@ -179,6 +260,15 @@ def serve(port=8765, directory=None, open_browser=False):
         return
     if open_browser:
         webbrowser.open(url)
+    # Prepare the workbench while the user opens the chat window.
+    import threading
+    def warm_workbench():
+        try:
+            from .harness_runtime import open_workbench
+            open_workbench()
+        except Exception as error:
+            print('Workbench warmup deferred: ' + type(error).__name__, flush=True)
+    threading.Thread(target=warm_workbench, daemon=True, name='workbench-warmup').start()
     print('Guarded chat: ' + url, flush=True)
     try:
         server.serve_forever(poll_interval=.25)
@@ -190,3 +280,11 @@ def serve(port=8765, directory=None, open_browser=False):
                 server.controller.cancel_event.set()
         server.server_close()
         server.controller.close()
+    if server.restart_requested:
+        import subprocess
+        import sys
+        # The supervisor uses the same Python environment and keeps a startup rollback path.
+        subprocess.Popen([sys.executable,str(Path(__file__).with_name('evolution_bootstrap.py')),
+                          str(Path(directory).resolve()),str(port)],
+                         stdin=subprocess.DEVNULL,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,
+                         creationflags=getattr(subprocess,'CREATE_NO_WINDOW',0))

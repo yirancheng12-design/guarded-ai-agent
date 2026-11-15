@@ -45,7 +45,9 @@ No activation, administrator elevation or PowerShell execution-policy changes ar
 
 `Install-Desktop.cmd`: installs `.[windows,assistant]` and Playwright Chromium, then performs the same verification. This profile needs Windows and internet access. It preserves `PLAYWRIGHT_BROWSERS_PATH`; otherwise an existing checkout-local `browsers/` is used, matching the launcher. Desktop/Chromium installation uses more disk and bandwidth than core setup.
 
-Start with `Start-Guarded.cmd`, or `.venv/bin/python -m guarded_agent web --data-dir data --open` on Linux/macOS for the core UI. Ollama, model weights, Git login and host tools remain separate; follow [model setup](docs/setup.md). Installation does not launch the assistant or act on your desktop. On Windows you can also use `python tools/install.py --profile desktop`.
+Start with `Start-Guarded.cmd`, or `.venv/bin/python -m guarded_agent web --data-dir data --open` on Linux/macOS for the core UI. On Windows the desktop profile opens a native window using Microsoft Edge WebView2 Runtime. To open the browser UI, run `.venv\Scripts\python.exe launch.pyw --browser` from the repository. On Windows you can also use `python tools/install.py --profile desktop`. Ollama, model weights, Git login and host tools are configured separately in [model setup](docs/setup.md).
+
+The full DeepSeek Harness workbench requires its managed runtime under `harness/`. Skill shortcuts load local skill documents from `data/harness/skills` or `GUARDED_SKILLS_ROOT`. The public ZIP contains the chat UI, startup templates and sound effects. Startup narration uses browser speech synthesis. The optional HALOFLUX renderer uses the included PolyForm Noncommercial license.
 
 ## Terminal and other operating systems
 

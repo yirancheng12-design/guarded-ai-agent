@@ -6,6 +6,8 @@ Start with one small file task, inspect the saved file and command output, and t
 
 ## Watch an actual run
 
+The demonstration below was recorded with v0.4.0.
+
 [Short MP4](https://github.com/yirancheng12-design/guarded-ai-agent/releases/download/v0.4.0/guarded-demo.mp4) · [Full task capture](https://github.com/yirancheng12-design/guarded-ai-agent/releases/download/v0.4.0/guarded-demo-full.webm) · [Verification JSON](../assets/demo-verification.json)
 
 ![Actual local Guarded task](../assets/demo-poster.png)

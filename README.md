@@ -14,6 +14,8 @@ Start with a simulation that needs no model or GPU, then add local chat, tool us
 
 Download the complete source ZIP, follow the installation prerequisites, and inspect the evidence before reporting a result.
 
+Version 0.5.0 brings the Windows desktop chat window, startup animation settings, and live task progress from the desktop build. `Install-Desktop.cmd` adds the desktop window and browser tooling. A core installation opens the chat UI in your browser. The optional Harness workbench and local skill catalog require a separately configured installation.
+
 ![Actual Guarded task](assets/demo-poster.png)
 
 
