@@ -16,7 +16,7 @@ from guarded_agent.work_tools import WorkTools, console_python
 class ProjectWorkflowTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(); self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.a = self.root/'alpha'; self.a.mkdir()
         self.b = self.root/'beta'; self.b.mkdir()
         self.controller = Controller(self.root/'data', projects_root=self.root/'library')

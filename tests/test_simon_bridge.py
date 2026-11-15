@@ -1,5 +1,6 @@
 from pathlib import Path
 import json
+import os
 import tempfile
 import threading
 import time
@@ -167,6 +168,7 @@ class BridgeTests(unittest.TestCase):
         self.assertTrue(self.control.cancelled())
         self.assertFalse(self.control.approve('test', {}))
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows desktop session lock')
     def test_desktop_lock_serializes_sessions_and_releases(self):
         with desktop_lock(self.root):
             with self.assertRaisesRegex(RuntimeError, '另一个'):

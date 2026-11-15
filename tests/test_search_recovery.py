@@ -17,7 +17,7 @@ class SearchRecoveryTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
-        self.root = Path(self.temp.name)
+        self.root = Path(self.temp.name).resolve()
         self.tools = WorkTools(self.root, self.root / 'data', 'run', lambda *a: True)
 
     def test_github_query_uses_repository_search_and_preserves_encoding(self):

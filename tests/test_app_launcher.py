@@ -150,17 +150,20 @@ class AppLauncherTests(unittest.TestCase):
         native.api.u.EnumChildWindows.side_effect = lambda hwnd, callback, param: callback(20, param)
         return native
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows application frame hosting')
     def test_system_host_with_matching_child_is_recognized(self):
         native = self.hosted_backend()
         result = native._application_identity('C:/Windows/System32/calc.exe', WindowIdentity(1, 10, 11))
         self.assertEqual(result, asdict(WindowIdentity(20, 21, 22)))
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows application frame hosting')
     def test_same_named_non_system_host_is_not_trusted(self):
         native = self.hosted_backend()
         native._process_image = lambda pid: 'C:/untrusted/ApplicationFrameHost.exe'
         self.assertIsNone(native._application_identity('C:/Windows/System32/calc.exe', WindowIdentity(1, 10, 11)))
         native.api.u.EnumChildWindows.assert_not_called()
 
+    @unittest.skipUnless(os.name == 'nt', 'Windows application frame hosting')
     def test_hidden_hosted_child_is_not_evidence(self):
         native = self.hosted_backend()
         native.api.u.IsWindowVisible.return_value = False

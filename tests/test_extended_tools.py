@@ -1,5 +1,6 @@
 from pathlib import Path
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib.util import find_spec
 from unittest.mock import patch
 import json
 import tempfile
@@ -66,6 +67,7 @@ class ExtendedToolsTests(unittest.TestCase):
         self.assertEqual(result['outcome'], 'completed')
         self.assertEqual(sum(s['tool']=='write_file' for s in result['steps']), 1)
 
+    @unittest.skipUnless(all(find_spec(name) for name in ('docx', 'openpyxl', 'pptx')), 'Install the optional Office document packages')
     def test_office_documents_are_reopened_and_content_verified(self):
         for extension, kwargs, text in [
             ('docx', {'paragraphs': ['中文验收内容']}, '中文验收内容'),
@@ -77,11 +79,13 @@ class ExtendedToolsTests(unittest.TestCase):
                 self.assertIn(text, self.tools.read_document('test.' + extension)['text'])
                 with self.assertRaises(ValueError): self.tools.create_document('test.' + extension, 'overwrite', **kwargs)
 
+    @unittest.skipUnless(find_spec('pypdf'), 'Install pypdf to test PDF reading')
     def test_pdf_read(self):
         from pypdf import PdfWriter
         writer = PdfWriter(); writer.add_blank_page(200,200); writer.write(self.root / 'blank.pdf')
         self.assertIn('第 1 页', self.tools.read_document('blank.pdf')['text'])
 
+    @unittest.skipUnless(find_spec('PIL'), 'Install Pillow to test image processing')
     def test_image_is_sent_to_local_model_as_actual_pixels(self):
         from PIL import Image
         Image.new('RGB',(120,80),'red').save(self.root / 'red.png')
@@ -121,7 +125,6 @@ class FixtureHandler(BaseHTTPRequestHandler):
 
 class BrowserIntegrationTests(unittest.TestCase):
     def test_real_chromium_fill_click_postcondition_and_stale_snapshot(self):
-        from importlib.util import find_spec
         if find_spec('playwright') is None:
             self.skipTest('Install Playwright and Chromium to run browser integration tests')
         server=ThreadingHTTPServer(('127.0.0.1',0),FixtureHandler)

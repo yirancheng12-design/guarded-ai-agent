@@ -10,6 +10,7 @@ import json
 import os
 import re
 import shutil
+import signal
 import socket
 import sqlite3
 import ssl
@@ -341,7 +342,7 @@ class WorkTools(GitHubTools, DesktopInputTools, WorkspaceTools, BrowserTools):
         with output.open('wb') as log:
             process = subprocess.Popen([shell, '-NoLogo', '-NoProfile', '-NonInteractive', '-Command', script.read_text(encoding='utf-8-sig')], cwd=self.root,
                 stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT, env=environment,
-                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0), start_new_session=os.name != 'nt')
             deadline, interrupted = time.monotonic() + getattr(self, 'command_timeout', 90), False
             try:
                 while process.poll() is None:
@@ -353,8 +354,14 @@ class WorkTools(GitHubTools, DesktopInputTools, WorkspaceTools, BrowserTools):
                 if process.poll() is None:
                     # Terminate only this owned, still-running process and its descendants.
                     try:
-                        subprocess.run([os.path.join(os.environ['SystemRoot'], 'System32', 'taskkill.exe'), '/PID', str(process.pid), '/T', '/F'],
-                                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                        if os.name == 'nt':
+                            subprocess.run([os.path.join(os.environ['SystemRoot'], 'System32', 'taskkill.exe'), '/PID', str(process.pid), '/T', '/F'],
+                                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=10, creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
+                        else:
+                            try:
+                                os.killpg(process.pid, signal.SIGKILL)
+                            except ProcessLookupError:
+                                pass
                     finally:
                         if process.poll() is None: process.kill()
                         process.wait(timeout=10)

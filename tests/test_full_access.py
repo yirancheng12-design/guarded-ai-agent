@@ -14,7 +14,7 @@ class FullAccessTests(unittest.TestCase):
     def setUp(self):
         self.temporary = tempfile.TemporaryDirectory()
         self.addCleanup(self.temporary.cleanup)
-        self.base = Path(self.temporary.name)
+        self.base = Path(self.temporary.name).resolve()
         self.root = self.base / 'work'; self.root.mkdir()
         self.outside = self.base / 'outside'; self.outside.mkdir()
         self.approve = Mock(return_value=False)

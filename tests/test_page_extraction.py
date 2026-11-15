@@ -1,7 +1,9 @@
+from importlib.util import find_spec
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from unittest import TestCase
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest import TestCase, skipUnless
+from unittest.mock import Mock, patch
 
 from guarded_agent.page_extraction import extract_main_text
 from guarded_agent.work_tools import WorkTools
@@ -20,6 +22,7 @@ class PageExtractionTests(TestCase):
                 'url': 'https://example.com/article', 'text': html, 'content_type': content_type}):
             return self.tools.fetch_url('https://example.com/article')
 
+    @skipUnless(find_spec('trafilatura'), 'Install trafilatura to test main-text extraction')
     def test_actual_extractor_removes_navigation(self):
         paragraphs = ''.join('<p>' + text * 12 + '</p>' for text in (
             '这是关于本地助手的正文，介绍网页阅读能力与文档处理方式。',
@@ -40,7 +43,8 @@ class PageExtractionTests(TestCase):
                 self.assertIn('Short page', result['text'])
                 self.assertNotIn('SECRET_SCRIPT', result['text'])
                 self.assertEqual(result['links'], ['https://example.com/next'])
-        with patch('trafilatura.extract', side_effect=ValueError('malformed')):
+        extractor = SimpleNamespace(extract=Mock(side_effect=ValueError('malformed')))
+        with patch.dict('sys.modules', {'trafilatura': extractor}):
             self.assertIsNone(extract_main_text('<html>', 'https://example.com'))
 
     def test_plain_text_is_unchanged_and_output_is_bounded(self):

@@ -1,4 +1,5 @@
 from contextlib import nullcontext
+from importlib.util import find_spec
 from pathlib import Path
 from unittest.mock import patch, Mock
 import tempfile
@@ -111,6 +112,8 @@ class DesktopInputTests(unittest.TestCase):
         self.assertIsNone(executable_entry(self.root / 'data.txt'))
 
     def native(self):
+        if find_spec('PIL') is None:
+            self.skipTest('Install Pillow to test native screenshot verification')
         from PIL import Image
         native = NativeDesktop.__new__(NativeDesktop)
         native.api = Mock()
@@ -124,16 +127,16 @@ class DesktopInputTests(unittest.TestCase):
         return native
 
     def test_changed_screenshot_prevents_native_input(self):
-        from PIL import Image
         native = self.native()
+        from PIL import Image
         with patch('PIL.ImageGrab.grab', return_value=Image.new('RGB', (20, 20), 'black')):
             result = native.input(self.observation, {'kind': 'type_text', 'text': 'test'}, str(self.before), 'unused')
         self.assertEqual(result['execution_status'], 'not_sent')
         native.api.send.assert_not_called()
 
     def test_partial_native_input_is_unknown_and_never_retried(self):
-        from PIL import Image
         native = self.native()
+        from PIL import Image
         native.api.text_events.return_value = [1, 2, 3, 4]
         native.api.send.return_value = (1, 4, 1)
         with patch('PIL.ImageGrab.grab', return_value=Image.new('RGB', (20, 20), 'white')):
@@ -150,8 +153,8 @@ class DesktopInputTests(unittest.TestCase):
         native.api.send.assert_not_called()
 
     def test_window_losing_foreground_before_send_prevents_input(self):
-        from PIL import Image
         native = self.native()
+        from PIL import Image
         native.context.side_effect = [Rect(0, 0, 20, 20), RuntimeError('foreground_lost')]
         with patch('PIL.ImageGrab.grab', return_value=Image.new('RGB', (20, 20), 'white')):
             with self.assertRaises(RuntimeError):
