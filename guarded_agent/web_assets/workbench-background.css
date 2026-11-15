@@ -1,0 +1,47 @@
+html.guarded-animated-workbench,
+html.guarded-animated-workbench body {
+  background:#080b12 !important;
+  background-image:none !important;
+  isolation:isolate;
+}
+html.guarded-animated-workbench body::before,
+html.guarded-animated-workbench body::after,
+html.guarded-animated-workbench #root::before,
+html.guarded-animated-workbench #root::after {display:none !important;}
+#guarded-workbench-background {
+  position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+  background:#08090b;
+}
+#guarded-workbench-background iframe {
+  display:block;width:100%;height:100%;border:0;pointer-events:none;
+}
+#guarded-workbench-background::after {
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(90deg,rgba(5,9,16,.78),rgba(5,9,16,.4) 48%,rgba(5,9,16,.36) 72%,rgba(5,9,16,.28));
+}
+html.guarded-animated-workbench #root {
+  position:relative;z-index:1;background:transparent !important;
+  --guarded-text-halo:#050910;
+  text-shadow:1px 0 var(--guarded-text-halo),-1px 0 var(--guarded-text-halo),
+    0 1px var(--guarded-text-halo),0 -1px var(--guarded-text-halo),
+    0 0 3px var(--guarded-text-halo);
+}
+html.guarded-animated-workbench #root :is(main,[role="main"]) {
+  background:rgba(6,10,18,.18) !important;
+}
+html.guarded-animated-workbench #root :is(p,pre,code,h1,h2,h3) {
+  text-shadow:inherit;
+}
+html.guarded-animated-workbench[data-guarded-theme="light"] #guarded-workbench-background::after {
+  background:linear-gradient(90deg,rgba(247,249,253,.86),rgba(247,249,253,.3) 48%,rgba(247,249,253,.26) 72%,rgba(247,249,253,.2));
+}
+html.guarded-animated-workbench[data-guarded-theme="light"] #guarded-workbench-background iframe {
+  filter:invert(1) hue-rotate(180deg);
+}
+html.guarded-animated-workbench[data-guarded-theme="light"] #root :is(main,[role="main"]) {
+  background:rgba(247,249,253,.18) !important;
+}
+html.guarded-animated-workbench[data-guarded-theme="light"] #root :is(p,pre,code,h1,h2,h3) {
+  text-shadow:inherit;
+}
+html.guarded-animated-workbench[data-guarded-theme="light"] #root {--guarded-text-halo:#f7f9fd;}

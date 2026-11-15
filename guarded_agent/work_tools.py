@@ -8,6 +8,7 @@ import http.client
 import ipaddress
 import json
 import os
+import re
 import shutil
 import socket
 import sqlite3
@@ -68,7 +69,7 @@ TOOLS = [
     schema('task_status', 'Read durable task notes from this conversation. Previous unknown actions must not be replayed.', {}),
     schema('search_files', 'Recursively find workspace files by glob pattern and optional literal text query. Returns paths and matching line numbers.', {'query': TEXT, 'pattern': TEXT, 'path': TEXT}),
     schema('list_files', 'List immediate files/folders in the selected workspace. Paths are relative to workspace.', {'path': TEXT}),
-    schema('read_file', 'Read UTF-8 text and its SHA256. Use line range for large files.', {'path': TEXT, 'start_line': {'type': 'integer'}, 'line_count': {'type': 'integer'}}, ['path']),
+    schema('read_file', 'Read UTF-8 text and its SHA256. Default 120 lines / 4000 characters. If truncated, call read_file with the exact returned next_read arguments; do not repeat the same range. char_offset is within the selected line range.', {'path': TEXT, 'start_line': {'type': 'integer'}, 'line_count': {'type': 'integer'}, 'char_offset': {'type': 'integer'}, 'max_chars': {'type': 'integer'}}, ['path']),
     schema('write_file', 'Create or replace UTF-8 text. Existing files require the SHA256 returned by read_file; empty hash only creates a new file. Backups are automatic.', {'path': TEXT, 'content': TEXT, 'expected_sha256': TEXT}, ['path', 'content', 'expected_sha256']),
     schema('move_file', 'Move one file inside the workspace; never overwrites a destination. No directory moves.', {'source': TEXT, 'destination': TEXT}, ['source', 'destination']),
     schema('edit_file', 'Replace one unique exact text block in an existing UTF-8 file. Read first and pass sha256. Old versions are backed up.', {'path': TEXT, 'old_text': TEXT, 'new_text': TEXT, 'expected_sha256': TEXT}, ['path', 'old_text', 'new_text', 'expected_sha256']),
@@ -134,7 +135,7 @@ def public_get(url, redirects=0, allowed_hosts=()):
         connection.sock = ssl.create_default_context().wrap_socket(connection.sock, server_hostname=host)
     try:
         target = quote(parsed.path or '/', safe='/%:@') + (('?' + quote(parsed.query, safe='=&%+/:@?')) if parsed.query else '')
-        connection.request('GET', target, headers={'Host': parsed.netloc, 'User-Agent': 'GuardedLocalAssistant/0.2', 'Accept': 'text/html,text/plain,application/xml'})
+        connection.request('GET', target, headers={'Host': parsed.netloc, 'User-Agent': 'GuardedLocalAssistant/0.2', 'Accept': 'text/html,text/plain,application/xml,application/json'})
         response = connection.getresponse()
         if response.status in {301, 302, 303, 307, 308}:
             if redirects >= 3: raise ValueError('网页重定向次数过多')
@@ -194,6 +195,8 @@ class WorkTools(GitHubTools, DesktopInputTools, WorkspaceTools, BrowserTools):
 
     def execute(self, name, arguments):
         if self.cancelled(): raise Declined('已停止后续操作')
+        from .read_progress import normalize_read_arguments
+        arguments = normalize_read_arguments(name, arguments)
         specs = {tool['function']['name']: tool['function']['parameters'] for tool in TOOLS}
         if name not in specs or not isinstance(arguments, dict): raise ValueError('未知工具或参数格式')
         spec = specs[name]
@@ -216,7 +219,7 @@ class WorkTools(GitHubTools, DesktopInputTools, WorkspaceTools, BrowserTools):
             if len(items) >= 200: break
         return {'path': path, 'items': items, 'limit': 200}
 
-    def read_file(self, path, start_line=1, line_count=120):
+    def read_file(self, path, start_line=1, line_count=120, char_offset=0, max_chars=4000):
         self.local_context = True
         file = self.path(path)
         if file.stat().st_size > 2_000_000: raise ValueError('文件超过 2 MB，请先拆分')
@@ -224,10 +227,23 @@ class WorkTools(GitHubTools, DesktopInputTools, WorkspaceTools, BrowserTools):
         text = raw.decode('utf-8-sig')
         if '\x00' in text: raise ValueError('不能把二进制文件当作文本读取')
         if not 1 <= start_line or not 1 <= line_count <= 300: raise ValueError('行号或行数无效')
+        if type(char_offset) is not int or char_offset < 0 or type(max_chars) is not int or not 256 <= max_chars <= 16000:
+            raise ValueError('char_offset 必须是非负整数，max_chars 必须在 256 到 16000 之间')
         lines = text.splitlines()
         excerpt = '\n'.join(lines[start_line - 1:start_line - 1 + line_count])
+        if char_offset > len(excerpt): raise ValueError('char_offset 超出所选行范围，请使用上次返回的 next_read')
+        end = min(len(excerpt), char_offset + max_chars)
+        next_read = None
+        if end < len(excerpt):
+            next_read = {'path': path, 'start_line': start_line, 'line_count': line_count,
+                         'char_offset': end, 'max_chars': max_chars}
+        elif start_line - 1 + line_count < len(lines):
+            next_read = {'path': path, 'start_line': start_line + line_count, 'line_count': line_count,
+                         'char_offset': 0, 'max_chars': max_chars}
         return {'path': path, 'sha256': sha256(raw).hexdigest(), 'total_lines': len(lines), 'start_line': start_line,
-                'text': excerpt[:16000], 'truncated': len(excerpt) > 16000}
+                'char_offset': char_offset, 'returned_chars': end-char_offset,
+                'text': excerpt[char_offset:end], 'truncated': next_read is not None, 'next_read': next_read,
+                'read_note': 'truncated 时将 next_read 原样作为下一次 read_file 参数；不要重复从头读取。'}
 
     def write_file(self, path, content, expected_sha256):
         raw = content.encode('utf-8')
@@ -348,6 +364,22 @@ class WorkTools(GitHubTools, DesktopInputTools, WorkspaceTools, BrowserTools):
 
     def search_web(self, query):
         if not query.strip() or len(query) > 500: raise ValueError('搜索内容无效')
+        if re.search(r'\bgithub\b', query, re.I):
+            # Search repositories directly: regional RSS search can silently
+            # ignore all but one term and return homepages or dictionaries.
+            terms = re.sub(r'(?i)(?:site:)?(?:www\.)?github(?:\.com)?/?', ' ', query).strip()
+            if not terms: raise ValueError('请提供 GitHub 仓库的主题关键词')
+            self.network_review({'query': query, 'destination': 'GitHub public repository search'})
+            result = public_get('https://api.github.com/search/repositories?q=' + quote(terms, safe='') + '&per_page=8')
+            if result.get('redirect_url'): return {**result, 'outcome': 'failed'}
+            data = json.loads(result['text'])
+            items = [{'title': item['full_name'], 'url': item['html_url'],
+                      'snippet': item.get('description') or '', 'language': item.get('language')}
+                     for item in data.get('items', [])[:8]]
+            return {'query': query, 'results': items, 'source': 'github_repositories',
+                    'outcome': 'success' if items else 'failed',
+                    'note': '读取相关仓库 URL 和 README 后再选择实现；不要仅凭搜索摘要修改。' if items else
+                            '没有匹配仓库。使用少量核心主题词，例如 liquid-glass；不要同时要求多个互斥框架。'}
         self.network_review({'query': query, 'destination': 'Bing'})
         result = public_get('https://www.bing.com/search?format=rss&q=' + quote(query), allowed_hosts=('www.bing.com', 'cn.bing.com'))
         if result.get('redirect_url'): return {**result, 'outcome': 'failed'}
@@ -361,7 +393,11 @@ class WorkTools(GitHubTools, DesktopInputTools, WorkspaceTools, BrowserTools):
         result = public_get(url)
         if 'html' in result.get('content_type', ''):
             parser = PageText(); parser.feed(result['text'])
-            result['text'] = '\n'.join(line.strip() for line in ''.join(parser.parts).splitlines() if line.strip())[:16000]
+            from .page_extraction import extract_main_text
+            main_text = extract_main_text(result['text'], result.get('url', url))
+            fallback = '\n'.join(line.strip() for line in ''.join(parser.parts).splitlines() if line.strip())
+            result['text'] = (main_text or fallback)[:16000]
+            result['extraction'] = 'trafilatura' if main_text else 'basic_html'
             result['links'] = list(dict.fromkeys(urljoin(url, link) for link in parser.links if not link.startswith(('javascript:', 'data:'))))[:30]
         else: result['text'] = result['text'][:16000]
         return result

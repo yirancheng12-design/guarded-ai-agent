@@ -10,6 +10,8 @@
 
 [Release / 下载](https://github.com/yirancheng12-design/guarded-ai-agent/releases/latest) · [演示与试用 / Evidence and trial](docs/public-trial.md)
 
+v0.5.0 同步了桌面聊天窗口、片头设置和任务进度。运行 `Install-Desktop.cmd` 可安装原生窗口和浏览器工具，基础安装通过浏览器打开聊天。完整工作台和本机技能目录需要单独配置。
+
 下载完整源码 ZIP，按安装前提运行，并在核对实际结果后反馈。
 
 ![Actual Guarded task](assets/demo-poster.png)

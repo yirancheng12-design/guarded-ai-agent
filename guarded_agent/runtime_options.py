@@ -7,7 +7,7 @@ LIMITS = {
     'num_ctx': (int, 2048, 131072, 16384), 'num_predict': (int, 128, 32768, 4096),
     'max_rounds': (int, 1, 10**12, None),
     'max_tool_calls': (int, 1, 10**12, None),
-    'task_timeout': (int, 30, 10**12, 1800), 
+    'task_timeout': (int, 30, 10**12, None),
     'command_timeout': (int, 1, 10**12, 90),
 }
 
@@ -18,7 +18,7 @@ def validated_options(values):
     result = {}
     for key, (kind, low, high, default) in LIMITS.items():
         value = values.get(key, default)
-        if value is None and key in {'max_rounds', 'max_tool_calls'}:
+        if value is None and key in {'max_rounds', 'max_tool_calls', 'task_timeout'}:
             result[key] = None
             continue
         types = (int,) if kind is int else (int, float)

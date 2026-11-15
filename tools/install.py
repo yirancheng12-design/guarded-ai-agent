@@ -20,7 +20,7 @@ def commands(profile):
     python = str(environment_python())
     if PROJECT == 'guarded':
         result = [[python, '-m', 'pip', 'install', '-e',
-                   '.[windows,assistant]' if profile == 'desktop' else '.']]
+                   '.[desktop,windows,assistant,web]' if profile == 'desktop' else '.']]
         if profile == 'desktop':
             result.append([python, '-m', 'playwright', 'install', 'chromium'])
         return result + [[python, '-m', 'pip', 'check'],

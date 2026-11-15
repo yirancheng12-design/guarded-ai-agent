@@ -4,15 +4,17 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "guarded-agent"
-version = "0.4.0"
+version = "0.5.0"
 description = "Local Ollama work agent with verified actions and GitHub repository workflows"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
+desktop = ["pywebview==6.2.1"]
 windows = ["comtypes==1.4.17", "Pillow==13.0.0"]
 assistant = ["playwright==1.64.1", "pypdf==6.21.2", "python-docx==1.2.0", "openpyxl==3.1.5", "python-pptx==1.0.2"]
+web = ["trafilatura==2.3.1"]
 
 [project.scripts]
 guarded-agent = "guarded_agent.cli:main"
@@ -26,4 +28,8 @@ Documentation = "https://github.com/yirancheng12-design/guarded-ai-agent/blob/ma
 include = ["guarded_agent*"]
 
 [tool.setuptools.package-data]
-guarded_agent = ["web_assets/*.html", "web_assets/*.css", "web_assets/*.js"]
+guarded_agent = [
+    "web_assets/*.html", "web_assets/*.css", "web_assets/*.js", "web_assets/*.webp",
+    "web_assets/boot-suite/*", "web_assets/boot-suite/**/*",
+    "native-renderer/haloflux-background.html", "native-renderer/LICENSE-HALOFLUX",
+]

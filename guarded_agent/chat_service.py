@@ -22,12 +22,16 @@ class BusyError(RuntimeError):
 
 
 def chat_stream(client, messages, cancelled, on_text):
-    body = {"model": client.model, "stream": True, "think": False,
+    body = {"model": client.model, "stream": True, "think": getattr(client, "thinking", False),
             "messages": [{"role": "system", "content":
                 "你是 Guarded 的本地聊天助手。用用户的语言清楚回答。当前处于普通聊天模式，"
                 "你不能通过这条普通回复操作桌面，也不能声称已经执行任何动作。界面的助手模式支持明确输入：打开微信、打开WeGame、打开记事本、打开计算器。"
                 "需要文件、代码、网页、浏览器或电脑操作时切换到综合助手模式。"}] + messages,
-            "options": {"num_ctx": 8192, "num_predict": 2048}, "keep_alive": "5m"}
+            "options": {"num_batch": 128, "draft_num_predict": 0,
+                        "num_ctx": 16384 if getattr(client, "thinking", False) else 8192,
+                        "num_predict": 4096 if getattr(client, "thinking", False) else 2048}, "keep_alive": "5m"}
+    from .planning_context import chat_context
+    body['messages'] = chat_context(body['messages'], body['options'])
     request = urllib.request.Request(client.base_url + '/api/chat',
         json.dumps(body, ensure_ascii=False).encode('utf-8'), {'Content-Type': 'application/json'})
     text, done = '', False
@@ -55,6 +59,8 @@ def chat_stream(client, messages, cancelled, on_text):
             if piece:
                 on_text(text)
             if chunk.get('done'):
+                if chunk.get('done_reason') == 'length':
+                    raise RuntimeError('模型达到输出上限，请提高输出预算或缩小问题后重试。')
                 done = True
                 break
     if cancelled():
@@ -206,11 +212,14 @@ class Controller:
         self.client_factory, self.chat_runner = client_factory, chat_runner
         self.lock = threading.RLock()
         self.active = None
+        self.restarting = False
         self.cancel_event = None
         self.approval_gate = None
         self.approval_answer = False
         self.browser_service = None
         self.projects_root = Path(projects_root or os.environ.get('GUARDED_PROJECTS_ROOT') or self.store.directory.parent / 'codex项目').resolve()
+        from .evolution import EvolutionManager
+        self.evolution = EvolutionManager(self)
 
     def browser(self):
         from .browser_tools import BrowserService
@@ -302,7 +311,7 @@ class Controller:
             if file.suffix.lower() in {'.pdf','.docx','.xlsx','.pptx'}:
                 result = tools.read_document(path)
             else:
-                result = tools.read_file(path, line_count=300)
+                result = tools.read_file(path, line_count=300, max_chars=16000)
                 result['truncated'] = result['truncated'] or result['total_lines'] > 300
             return {**result, 'absolute_path': str(file)}
 
@@ -389,6 +398,7 @@ class Controller:
         return self.store.save_profile(name.strip(), data)
 
     def idle(self):
+        if self.restarting: raise BusyError('正在启用已验证的更新，请稍后重试。')
         with self.lock:
             if self.active:
                 raise BusyError('正在处理一个请求，请等待完成或停止后续动作')
@@ -409,7 +419,9 @@ class Controller:
         profile['data']['window'] = window
         return self.store.save_profile(profile['name'], profile['data'], identifier)
 
-    def send(self, conversation, text, model, mode='chat', profile_id=None):
+    def send(self, conversation, text, model, mode='chat', profile_id=None, thinking=False):
+        if type(thinking) is not bool:
+            raise ValueError('深度思考选项必须为布尔值')
         if not isinstance(text, str) or not text.strip() or len(text) > 12000:
             raise ValueError('请输入 1 到 12000 个字符')
         if not isinstance(model, str) or not model.strip() or len(model) > 200:
@@ -436,9 +448,9 @@ class Controller:
             identifier = uuid.uuid4().hex
             self.store.begin(conversation, text.strip(), mode, identifier)
             self.active = {'id': identifier, 'conversation': conversation, 'mode': mode,
-                'status': 'running', 'text': '', 'events': [], 'started': time.time()}
+                'status': 'running', 'text': '', 'events': [], 'started': time.time(), 'thinking': thinking}
             self.cancel_event = threading.Event()
-            thread = threading.Thread(target=self._run, args=(identifier, conversation, text.strip(), model, mode, profile, self.cancel_event, app_id), daemon=True)
+            thread = threading.Thread(target=self._run, args=(identifier, conversation, text.strip(), model, mode, profile, self.cancel_event, app_id, thinking), daemon=True)
             thread.start()
             return identifier
 
@@ -452,9 +464,14 @@ class Controller:
     def event(self, identifier, event):
         with self.lock:
             if self.active and self.active['id'] == identifier:
-                self.active['events'].append({**event, 'at': time.time()})
+                item = {**event, 'at': time.time()}
+                events = self.active['events']
+                if event['kind'] == 'model_progress' and events and events[-1]['kind'] == 'model_progress':
+                    events[-1] = item
+                else:
+                    events.append(item)
 
-    def _run(self, identifier, conversation, text, model, mode, profile, cancel, app_id=None):
+    def _run(self, identifier, conversation, text, model, mode, profile, cancel, app_id=None, thinking=False):
         def event(data):
             self.event(identifier, data)
         def update(value):
@@ -467,12 +484,21 @@ class Controller:
                 self._finish(identifier, mode, result)
                 return
             client = self.client_factory(model)
+            client.thinking = thinking
+            if thinking:
+                client.timeout = max(getattr(client, 'timeout', 120), 600)
+                event({'kind': 'thinking_started'})
             if mode == 'work':
                 from .work_tools import WorkTools
                 from .work_agent import run_work
                 previous_messages = self.store.messages(conversation)[:-2]
                 history = [{'role': m['role'], 'content': m['content']} for m in previous_messages
                            if m['mode'] in {'chat', 'work'} and m['status'] in {'done', 'success', 'completed'} and m['content']][-8:]
+                from .workspace_tools import is_continuation
+                if is_continuation(text):
+                    objective = next(({'role': 'user', 'content': m['content']} for m in reversed(previous_messages)
+                        if m['role'] == 'user' and m['content'] and not is_continuation(m['content'])), None)
+                    if objective and objective not in history: history.insert(0, objective)
                 local_context = any(step.get('tool') in {'list_files', 'read_file', 'search_files', 'read_document', 'describe_image', 'inspect_screen', 'run_command', 'list_windows', 'inspect_window'}
                     for message in previous_messages for step in message.get('detail', {}).get('result', {}).get('steps', []))
                 toolbox = self.work_tools(conversation, identifier,
@@ -484,8 +510,6 @@ class Controller:
             elif mode == 'chat':
                 history = [{'role': m['role'], 'content': m['content']} for m in self.store.messages(conversation)
                            if m['mode'] == 'chat' and m['status'] in {'done', 'success'} and m['content']][-32:]
-                while sum(len(m['content']) for m in history) > 48000 and len(history) > 1:
-                    history.pop(0)
                 event({'kind': 'chat_started'})
                 result = self.chat_runner(client, history, cancel.is_set, update)
             else:
@@ -516,17 +540,23 @@ class Controller:
                 if not result.get('steps') and result.get('reason', '').startswith('model_stopped:'):
                     result['outcome'] = 'unsupported'
                     result['text'] = '这个任务不在当前配置的支持范围内，未执行动作。打开微信或 WeGame 请使用助手模式。'
-            self._finish(identifier, mode, result)
+            self._finish(identifier, mode, result, model=model)
         except Exception as exc:
             detail = f'{type(exc).__name__}: {exc}'
             result = {'outcome': 'error', 'reason': detail}
             advice = '请求未完成。请确认 Ollama 正在运行、模型可用。' if mode == 'chat' else '任务未完成，请查看原因；不会自动重发动作。'
-            self._finish(identifier, mode, result, advice + '\n' + detail)
+            self._finish(identifier, mode, result, advice + '\n' + detail, model=model)
 
-    def _finish(self, identifier, mode, result, content=None):
+    def _finish(self, identifier, mode, result, content=None, model=None):
         with self.lock:
+            if mode == 'work' and not result.get('workspace') and self.active and self.active['id'] == identifier:
+                result = {**result,'workspace':self.store.settings(self.active['conversation'])['workspace']}
             events = self.active['events'] if self.active and self.active['id'] == identifier else []
             self.store.finish(identifier, content or result_text(result, mode), result['outcome'], {'result': result, 'events': events})
             if self.active and self.active['id'] == identifier:
                 self.active = None
                 self.cancel_event = None
+        if mode == 'work':
+            try: self.evolution.after_task(identifier,result,model)
+            except Exception as error:
+                self.evolution.state('rejected','经验整理或自动修复暂未完成，原任务结果已保存',error_type=type(error).__name__)

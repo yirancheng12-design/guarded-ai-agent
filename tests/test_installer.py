@@ -64,7 +64,7 @@ class InstallerTests(unittest.TestCase):
     def test_desktop_installs_extras_before_browser_and_diagnostics(self):
         with patch.object(installer, 'PROJECT', 'guarded'):
             commands = installer.commands('desktop')
-        self.assertEqual(commands[0][-1], '.[windows,assistant]')
+        self.assertEqual(commands[0][-1], '.[desktop,windows,assistant,web]')
         self.assertEqual(commands[1][-3:], ['playwright', 'install', 'chromium'])
         self.assertIn('doctor', commands[-2])
 

@@ -11,15 +11,23 @@ from .simulation import SimulatedBackend
 
 
 class OllamaClient:
-    def __init__(self, model, base_url="http://127.0.0.1:11434", timeout=120):
+    # Large local models may need several minutes to load and generate a full
+    # non-streaming tool response. Explicit caller deadlines still take precedence.
+    def __init__(self, model, base_url="http://127.0.0.1:11434", timeout=1200):
         url = urlparse(base_url)
         if url.scheme != "http" or url.hostname not in {"127.0.0.1", "localhost", "::1"} or url.username or url.password or url.path not in {"", "/"}:
             raise ValueError("This adapter uses a local Ollama HTTP endpoint only")
         self.model, self.base_url, self.timeout = model, base_url.rstrip("/"), timeout
+        self.thinking = False
         # Local requests must not be forwarded through a system HTTP proxy.
         self.opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
 
     def request(self, path, data=None, timeout=None):
+        if path == '/api/chat' and isinstance(data, dict):
+            # Limit prompt batching to leave VRAM headroom on desktop GPUs.
+            # Preserve caller tuning and never mutate a reusable request body.
+            options = {'num_batch': 128, 'draft_num_predict': 0, **data.get('options', {})}
+            data = {**data, 'options': options}
         body = json.dumps(data, ensure_ascii=False).encode("utf-8") if data is not None else None
         request = urllib.request.Request(self.base_url + path, body, {"Content-Type": "application/json"})
         with self.opener.open(request, timeout=min(self.timeout, timeout) if timeout else self.timeout) as response:
@@ -31,8 +39,42 @@ class OllamaClient:
             raise RuntimeError(result["error"])
         return result
 
+    def request_work(self, data, cancelled, event, timeout=180):
+        """Stream generation only; partial tool calls never reach the executor."""
+        options = {'num_batch': 128, 'draft_num_predict': 0, **data.get('options', {})}
+        body = json.dumps({**data, 'stream': True, 'options': options}, ensure_ascii=False).encode('utf-8')
+        request = urllib.request.Request(self.base_url + '/api/chat', body, {'Content-Type': 'application/json'})
+        started = time.monotonic()
+        last_progress = started
+        size = chunks = 0
+        parts, thoughts, calls = [], [], []
+        with self.opener.open(request, timeout=min(self.timeout, timeout, 90)) as response:
+            while True:
+                if cancelled(): raise InterruptedError('模型生成已取消，未执行新的工具请求')
+                if time.monotonic() - started >= timeout: raise TimeoutError('本轮模型生成超过时间预算')
+                line = response.readline(1024 * 1024 + 1)
+                if not line: raise ConnectionError('模型流在完成标记前中断')
+                size += len(line)
+                if size > 4 * 1024 * 1024: raise ValueError('模型生成流超过大小限制')
+                item = json.loads(line)
+                if 'error' in item: raise RuntimeError(item['error'])
+                message = item.get('message') or {}
+                parts.append(message.get('content') or '')
+                thoughts.append(message.get('thinking') or '')
+                calls.extend(message.get('tool_calls') or [])
+                chunks += 1
+                now = time.monotonic()
+                if now - last_progress >= 1:
+                    event({'kind': 'model_progress', 'chunks': chunks, 'seconds': round(now-started)})
+                    last_progress = now
+                if item.get('done'):
+                    if cancelled(): raise InterruptedError('模型生成已取消')
+                    if now - started >= timeout: raise TimeoutError('本轮模型生成超过时间预算')
+                    return {**item, 'message': {'role': 'assistant', 'content': ''.join(parts),
+                        'thinking': ''.join(thoughts), 'tool_calls': calls}}
+
     def models(self):
-        return self.request("/api/tags").get("models", [])
+        return self.request("/api/tags", timeout=5).get("models", [])
 
     def decide(self, task, observation, catalog, history, timeout=None):
         schema = {
@@ -54,11 +96,11 @@ class OllamaClient:
         actions = {key: {"kind": a.kind, "target": asdict(a.target), "text": a.text,
                          "postcondition": asdict(a.condition)} for key, a in catalog.items()}
         result = self.request("/api/chat", {
-            "model": self.model, "stream": False, "think": False,
+            "model": self.model, "stream": False, "think": self.thinking,
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": json.dumps({"task": task, "observation": observation,
                             "actions": actions, "history": history, "schema": schema}, ensure_ascii=False)}],
-            "format": schema, "options": {"temperature": 0, "num_predict": 256, "num_ctx": 8192},
+            "format": schema, "options": {"temperature": 0, "num_predict": 4096 if self.thinking else 256, "num_ctx": 8192},
             "keep_alive": "5m",
         }, timeout=timeout)
         if result.get("message", {}).get("tool_calls"):

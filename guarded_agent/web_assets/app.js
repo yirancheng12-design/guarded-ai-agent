@@ -1,8 +1,10 @@
 'use strict';
 const $ = id => document.getElementById(id);
-const token = document.querySelector('meta[name="guarded-token"]').content;
+let token = document.querySelector('meta[name="guarded-token"]').content;
 let current = localStorage.getItem('guarded-conversation') || '';
+$('deepThinking').checked = localStorage.getItem('guarded-deep-thinking') === 'true';
 let active = null, profiles = [], windows = [], polling = false, sending = false;
+let refreshPending = false;
 let messageSignature = '', conversationSignature = '', profileSignature = '', toastTimer;
 let workspaceDirty = false;
 let attachments = [];
@@ -14,11 +16,19 @@ const compactLayout = window.matchMedia('(max-width:820px)');
 const modeNames = {assistant:'综合助手', work:'综合助手', chat:'纯聊天', app:'打开应用', demo:'计算器演示', desktop:'桌面任务'};
 const statuses = {success:'已验证完成', completed:'本轮已结束', incomplete:'还有未完成步骤', unknown:'需要核对', failed:'未完成', error:'请求失败', cancelled:'已停止', interrupted:'请求已中断', unsupported:'超出当前范围'};
 
-async function api(path, data) {
+async function api(path, data, renewSession = true) {
   const response = await fetch(path, {method:data === undefined ? 'GET' : 'POST',
     headers:{'X-Guarded-Token':token, ...(data === undefined ? {} : {'Content-Type':'application/json'})},
     ...(data === undefined ? {} : {body:JSON.stringify(data)})});
   const result = await response.json();
+  if (response.status === 403 && renewSession && result.error === '页面会话已失效，请刷新页面') {
+    const html = await (await fetch('/',{cache:'no-store'})).text();
+    const fresh = new DOMParser().parseFromString(html,'text/html').querySelector('meta[name="guarded-token"]')?.content;
+    if(fresh) {
+      token=fresh; document.querySelector('meta[name="guarded-token"]').content=fresh;
+      return api(path,data,false); // Authorization failed before execution; no action was sent to the controller.
+    }
+  }
   if (!response.ok) throw new Error(result.error || `请求失败 (${response.status})`);
   return result;
 }
@@ -63,19 +73,21 @@ function assistantHint() {
   return (hostSettings.auto_context ? '自动读取本地项目 · ' : '') + (hostSettings.auto_execute ? '普通步骤自动执行' : '操作前核对具体内容');
 }
 function eventText(event) {
-  if (event.kind === 'model_retry') return '模型暂未生成有效答复，正在自动恢复（' + event.attempt + '/2）';
+  if (event.kind === 'model_retry') return event.reason === 'generation_timeout' ? '模型生成超时，正在从已保存进度恢复（关闭额外思考，不重发操作）' : '模型暂未生成有效答复，正在自动恢复（' + event.attempt + '/2）';
+  if (event.kind === 'model_progress') return `模型正在生成 · 已接收 ${event.chunks} 段 · ${event.seconds} 秒`;
   if (event.tool === 'read_files') return event.kind === 'tool_started' ? '正在批量读取相关文件' : '批量读取文件：' + (event.outcome === 'success' ? '已完成' : '部分文件读取失败');
   if (event.kind === 'auto_approved') return (event.title || '普通步骤') + ' · 自动执行';
   if (event.tool === 'discover_projects') return event.kind === 'tool_started' ? '正在读取本地项目与任务记录' : '本地项目背景已读取';
   const toolNames = {update_plan:'更新任务计划', task_status:'读取任务记录', search_files:'搜索项目', edit_file:'修改代码或文本', read_document:'读取文档', create_document:'创建文档', describe_image:'分析图片', inspect_screen:'分析窗口截图', browser_open:'打开浏览器页面', browser_tabs:'查看浏览器标签', browser_read:'读取浏览器页面', browser_action:'操作网页', list_files:'查看文件', read_file:'读取文件', write_file:'保存文件', move_file:'移动文件', run_command:'运行命令', search_web:'搜索网页', fetch_url:'读取网页', list_apps:'查看应用', open_app:'打开应用', list_windows:'查看窗口', inspect_window:'读取控件', ui_action:'操作软件'};
   if (event.kind === 'plan_updated') return '任务计划已更新';
-  if (event.kind === 'work_planning') return `正在规划第 ${event.step} 轮`;
+  if (event.kind === 'work_planning') return (active?.thinking ? '深度思考 · ' : '') + `正在规划第 ${event.step} 轮`;
   if (event.kind === 'tool_started') return (toolNames[event.tool] || event.tool) + (event.input ? '：' + event.input : '');
   if (event.kind === 'tool_result') return `${toolNames[event.tool] || event.tool} · ${event.outcome === 'success' ? '已完成' : statuses[event.outcome] || event.outcome}`;
   if (event.kind === 'approval_decision') return `${event.title} · ${event.allowed ? '已允许' : '已取消'}`;
   if (event.kind === 'opening_app') return `正在打开${event.app}，等待窗口验证`;
   if (event.kind === 'system_permission') return `${event.app}需要 Windows 权限确认，请在系统对话框中处理；不想启动时请选择取消。`;
-  if (event.kind === 'chat_started') return '正在连接本地模型';
+  if (event.kind === 'thinking_started') return '深度思考中，可能需要数分钟…';
+  if (event.kind === 'chat_started') return active?.thinking ? '深度思考中，可能需要数分钟…' : '正在连接本地模型';
   if (event.kind === 'countdown') return '5 秒准备时间：请切换到目标窗口';
   if (event.kind === 'activated') return '已连接任务环境';
   if (event.kind === 'planning') return `正在规划第 ${event.step} 步`;
@@ -117,16 +129,48 @@ function renderMessages(messages) {
   const scroll = $('scrollArea');
   const nearBottom = scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 100;
   $('welcome').hidden = messages.length > 0;
-  $('messages').replaceChildren();
+  const list = $('messages');
+  const sameConversation = list.dataset.conversation === current;
+  const previous = new Map(sameConversation ? [...list.children].map(row => [row.dataset.messageId, row]) : []);
+  if (!sameConversation) list.replaceChildren();
+  list.dataset.conversation = current;
+  let position = 0;
+  const place = row => {
+    if (list.children[position] !== row) list.insertBefore(row, list.children[position] || null);
+    position++;
+  };
   for (const message of messages) {
     const live = ownActive && ownActive.id === message.id ? ownActive : null;
+    const key = String(message.id);
+    const old = previous.get(key);
+    previous.delete(key);
+    const shape = JSON.stringify([{...message, content:undefined}, live ? {...live, text:undefined} : null]);
+    const text = live ? live.text : message.content;
+    if (old && old._guardedShape === shape) {
+      if (old._guardedText !== text) {
+        const content = old.querySelector('.message-content');
+        content.replaceChildren();
+        if (text) renderContent(content, text);
+        else if (live) content.append(node('span', 'thinking', live.status === 'stopping' ? '正在停止，等待当前调用结束' : live.mode === 'chat' ? '正在思考' : '正在处理任务'));
+        else if (message.status === 'running') content.append(node('span', 'thinking', '正在恢复请求状态'));
+        old._guardedText = text;
+      }
+      place(old);
+      continue;
+    }
     const row = node('article', `message ${message.role}`);
+    row.dataset.messageId = key;
+    row._guardedShape = shape;
+    row._guardedText = text;
+    if (!old && sameConversation) {
+      row.classList.add('message-arriving');
+      row.addEventListener('animationend', () => row.classList.remove('message-arriving'), {once:true});
+    }
     if (message.role === 'assistant') row.append(node('div', 'message-avatar', 'g'));
     const body = node('div', 'message-body');
     body.append(node('div', 'message-label', message.role === 'user' ? '你' : `Guarded  /  ${modeNames[message.mode]}`));
     if (statuses[message.status]) body.append(node('div', `result-badge ${message.status}`, message.mode === 'chat' && message.status === 'success' ? '已回复' : statuses[message.status]));
     const content = node('div', 'message-content');
-    const text = live ? live.text : message.content;
     if (text) renderContent(content, text);
     else if (live) content.append(node('span', 'thinking', live.status === 'stopping' ? '正在停止，等待当前调用结束' : live.mode === 'chat' ? '正在思考' : '正在处理任务'));
     else if (message.status === 'running') content.append(node('span', 'thinking', '正在恢复请求状态'));
@@ -167,7 +211,9 @@ function renderMessages(messages) {
     }
     if (message.detail?.result?.artifacts?.length) {
       const files = node('div', 'artifact-list'); files.append(node('strong', '', '已保存的文件'));
-      for (const item of message.detail.result.artifacts) {
+      const uniqueFiles = new Map(message.detail.result.artifacts.map(item => [
+        (item.absolute_path || item.path).replaceAll('\\', '/').toLowerCase(), item]));
+      for (const item of uniqueFiles.values()) {
         const line = node('div','artifact-row'); line.append(node('span','',item.absolute_path || item.path));
         const view = node('button','text-button','查看内容');
         view.addEventListener('click', () => previewFile(item.path)); line.append(view); files.append(line);
@@ -188,10 +234,41 @@ function renderMessages(messages) {
         body.append(resume);
       }
     }
-    row.append(body); $('messages').append(row);
+    row.append(body);
+    if (old) {
+      const states = [...old.querySelectorAll('details')].map(item => item.open);
+      row.querySelectorAll('details').forEach((item, index) => { if (index < states.length) item.open = states[index]; });
+      old.replaceWith(row);
+    }
+    place(row);
   }
+  for (const row of previous.values()) row.remove();
   if (!messages.length) scroll.scrollTop = 0;
-  else if (nearBottom || messages.length <= 2) requestAnimationFrame(() => scroll.scrollTop = scroll.scrollHeight);
+  else if (nearBottom || !sameConversation) requestAnimationFrame(() => {
+    scroll.scrollTo({top:scroll.scrollHeight, behavior:sameConversation && !document.documentElement.classList.contains('ui-motion-off') ? 'smooth' : 'instant'});
+  });
+}
+function filterHistory() {
+  const query = $('historySearch').value.trim().toLocaleLowerCase();
+  let visible = 0;
+  for (const item of $('conversations').querySelectorAll('.conversation-item')) {
+    item.hidden = !!query && !item.textContent.toLocaleLowerCase().includes(query);
+    if (!item.hidden) visible++;
+  }
+  $('historyEmpty').hidden = !query || visible > 0;
+}
+function updateTaskStatus() {
+  const own = active && active.conversation === current ? active : null;
+  $('taskStatus').hidden = !own;
+  if (!own) return;
+  const events = own.events || [];
+  const plan = [...events].reverse().find(event => event.kind === 'plan_updated')?.steps || [];
+  const finished = plan.filter(step => step.status === 'completed').length;
+  const latest = events[events.length - 1];
+  const label = own.status === 'needs_approval' ? '等待你核对操作' : own.status === 'stopping' ? '正在停止，等待当前调用结束' : latest ? eventText(latest) : '正在连接本地模型';
+  const text = (plan.length ? `已完成 ${finished}/${plan.length} 步 · ` : '') + label;
+  if ($('taskStatusText').textContent !== text) $('taskStatusText').textContent = text;
+  $('taskStatus').classList.toggle('awaiting', own.status === 'needs_approval');
 }
 function renderState(state) {
   active = state.active; profiles = state.profiles;
@@ -211,6 +288,9 @@ function renderState(state) {
       $('conversations').append(button);
     }
   }
+  filterHistory();
+  updateTaskStatus();
+  $('draftCount').textContent = $('prompt').value.length + ' / ' + $('prompt').maxLength;
   $('conversationTitle').textContent = state.conversations.find(c => c.id === current)?.title || '新的对话';
   const pSignature = JSON.stringify(profiles);
   if (pSignature !== profileSignature) {
@@ -225,25 +305,31 @@ function renderState(state) {
   $('stop').hidden = !active;
   $('stop').disabled = active?.status === 'stopping';
   $('stop').textContent = active?.status === 'stopping' ? '正在停止…' : active?.mode === 'chat' ? '■ 停止生成' : '■ 停止后续动作';
-  for (const id of ['mode','model','profile','importProfile','refreshWindows','bindWindow','inspectWindow','saveWorkspace','attachFile','useProject']) $(id).disabled = !!active;
+  for (const id of ['mode','model','deepThinking','profile','importProfile','refreshWindows','bindWindow','inspectWindow','saveWorkspace','attachFile','useProject']) $(id).disabled = !!active;
   $('restoreChange').disabled = !!active || !chosenPreview?.can_restore;
   $('bottomHint').textContent = active ? (active.status === 'needs_approval' ? '请在对话中核对本次操作，可以允许或取消' : active.mode === 'chat' ? '首次加载模型可能需要稍等 · 可以继续输入草稿' : active.mode === 'demo' ? '正在运行模拟任务，无需切换窗口' : active.mode === 'work' ? '工具进度显示在对话中 · 可以继续输入草稿' : active.mode === 'app' ? '正在检查应用窗口是否显示' : '执行期间请保持目标窗口在前台') : 'Enter 发送 · Shift + Enter 换行';
   renderMessages(state.messages);
 }
 async function refresh() {
-  if (polling) return; polling = true;
+  if (polling) { refreshPending = true; return; } polling = true;
   const requestedConversation = current;
   try {
     const state = await api('/api/state' + (requestedConversation ? '?conversation=' + encodeURIComponent(requestedConversation) : ''));
     if (current === requestedConversation) renderState(state);
   } catch (error) {
+    if (current !== requestedConversation) return;
     if (error.message === '对话不存在') { current = ''; localStorage.removeItem('guarded-conversation'); }
     else { $('connectionText').textContent = '服务未连接'; $('connectionDot').className = 'status-dot offline'; }
-  } finally { polling = false; }
+  } finally {
+    polling = false;
+    if (refreshPending) { refreshPending = false; void refresh(); }
+  }
 }
 async function selectConversation(id) {
   attachments = []; $('attachments').replaceChildren(); workspaceDirty = false; closePreview();
   current = id; localStorage.setItem('guarded-conversation', id); messageSignature = '';
+  $('messages').replaceChildren(); $('welcome').hidden = true;
+  $('conversationTitle').textContent = '正在加载对话…';
   closeSidebar(); await refresh();
   $('scrollArea').scrollTop = $('messages').children.length ? $('scrollArea').scrollHeight : 0;
 }
@@ -255,7 +341,14 @@ async function loadModels() {
   $('connectionDot').className = 'status-dot loading'; $('connectionText').textContent = '连接 Ollama…';
   try {
     const result = await api('/api/models');
-    const chosen = $('model').value || localStorage.getItem('guarded-model') || 'gemma4:26b';
+    const defaultModel = 'qwen3.8-agent:27b';
+    const preferenceVersion = 'guarded-qwen38-agent-default-v1';
+    const useNewDefault = localStorage.getItem(preferenceVersion) !== '1' && result.models.includes(defaultModel);
+    const chosen = useNewDefault ? defaultModel : ($('model').value || localStorage.getItem('guarded-model') || defaultModel);
+    if (useNewDefault) {
+      localStorage.setItem('guarded-model', defaultModel);
+      localStorage.setItem(preferenceVersion, '1');
+    }
     $('model').replaceChildren();
     for (const name of result.models) $('model').add(new Option(name, name));
     if (result.models.includes(chosen)) $('model').value = chosen;
@@ -271,6 +364,102 @@ function updateProfile() {
   $('profileSummary').textContent = `允许动作：${Object.keys(data.actions).join('、')}\n目标：${data.goal.property} = ${JSON.stringify(data.goal.expected)}\n窗口：${data.window.hwnd || '尚未绑定'}`;
   localStorage.setItem('guarded-profile', profile.id);
 }
+const skillShortcuts = [
+  ['find-skills','找技能','搜索适合当前任务的技能'],
+  ['grill-me','梳理想法','逐步追问，把想法和需求理清楚'],
+  ['grill-with-docs','讨论并记文档','澄清方案并记录设计决策'],
+  ['improve-codebase-architecture','优化架构','分析当前项目的架构改进机会'],
+  ['agent-browser','浏览器操作','打开网页、读取内容和操作页面'],
+  ['tdd','测试驱动开发','先讨论测试范围，再写测试和实现'],
+  ['setup-matt-pocock-skills','配置项目技能','配置当前项目的技能工作流'],
+  ['frontend-design','前端设计','设计并实现前端界面'],
+  ['handoff','保存交接','整理进展，供下一次会话接手'],
+  ['triage','整理问题','分类项目问题，明确下一步'],
+];
+const skillBar = node('section', 'skill-shortcuts');
+skillBar.setAttribute('aria-label','技能快捷方式');
+const skillHeading = node('div','skill-shortcut-heading');
+skillHeading.append(node('strong','','技能快捷方式'), node('span','','点击选择 · 补充需求后发送'));
+const skillGrid = node('div','skill-shortcut-grid');
+for (const [id,label,description] of skillShortcuts) {
+  const button = node('button','skill-shortcut',label);
+  button.type = 'button'; button.dataset.skill = id;
+  button.title = `/${id} · ${description}`;
+  button.setAttribute('aria-label',`${label}：${description}`);
+  button.addEventListener('click', () => {
+    if (active || sending) { toast('请等待当前任务结束，或先停止任务。'); return; }
+    const draft = $('prompt').value.replace(/^\s*\/(?:find-skills|grill-me|grill-with-docs|improve-codebase-architecture|agent-browser|tdd|setup-matt-pocock-skills|frontend-design|handoff|triage)(?=\s|$)\s*/, '');
+    const next = `/${id} ${draft}`;
+    if (next.length > $('prompt').maxLength) { toast('草稿过长，请先缩短内容再选择技能。'); return; }
+    $('prompt').value = next;
+    setMode('assistant');
+    $('prompt').dispatchEvent(new Event('input', {bubbles:true}));
+    $('prompt').focus(); $('prompt').setSelectionRange(next.length,next.length);
+  });
+  skillGrid.append(button);
+}
+skillBar.append(skillHeading,skillGrid);
+$('composer').before(skillBar);
+const evolutionPanel = node('details','evolution-panel');
+const evolutionSummary = node('summary','','自动进化 · 正在连接');
+const evolutionBody = node('div','evolution-body');
+const evolutionStatus = node('p','evolution-status','任务经验会保存在本机，自身修复通过测试后自动启用。');
+const evolutionControls = node('div','evolution-controls');
+const learnLabel = node('label'); const learnToggle = node('input'); learnToggle.type='checkbox'; learnToggle.id='evolutionLearning';
+learnLabel.append(learnToggle,document.createTextNode('经验学习'));
+const repairLabel = node('label'); const repairToggle = node('input'); repairToggle.type='checkbox'; repairToggle.id='evolutionRepair';
+repairLabel.append(repairToggle,document.createTextNode('自动修复'));
+const checkEvolution = node('button','','立即自检'); checkEvolution.type='button'; checkEvolution.id='checkEvolution';
+const rollbackEvolution = node('button','','回退上一版本'); rollbackEvolution.type='button'; rollbackEvolution.id='rollbackEvolution';
+const evolutionLessons = node('ul','evolution-lessons');
+evolutionControls.append(learnLabel,repairLabel,checkEvolution,rollbackEvolution);
+evolutionBody.append(evolutionStatus,evolutionControls,evolutionLessons);
+evolutionPanel.append(evolutionSummary,evolutionBody); skillBar.before(evolutionPanel);
+let evolutionBusy=false, evolutionSignature='', evolutionUpdate=false;
+function renderEvolution(state) {
+  const running = state.busy;
+  evolutionSummary.textContent=`自动进化 · ${state.learning || state.repair ? '已开启' : '已暂停'} · ${state.lessons.length} 类经验`;
+  evolutionStatus.textContent=`已记录 ${state.runs} 次任务 · ${state.state.message}`;
+  learnToggle.checked=state.learning; repairToggle.checked=state.repair;
+  checkEvolution.disabled=running || !state.repair || !!active || !$('model').value;
+  rollbackEvolution.disabled=!state.can_rollback || running || !!active;
+  const signature=JSON.stringify(state.lessons);
+  if(signature!==evolutionSignature) {
+    evolutionSignature=signature; evolutionLessons.replaceChildren();
+    for(const lesson of state.lessons) evolutionLessons.append(node('li','',`${lesson.title}：${lesson.seen} 次证据，${lesson.recovered} 次任务最终完成。${lesson.advice}`));
+    if(!state.lessons.length) evolutionLessons.append(node('li','','完成任务后自动积累经验；重复失败会触发一次修复诊断。'));
+  }
+}
+async function refreshEvolution() {
+  if(evolutionBusy || evolutionUpdate || document.hidden) return;
+  evolutionBusy=true;
+  try { renderEvolution(await api('/api/evolution')); }
+  catch(error) { evolutionSummary.textContent='自动进化 · 等待服务连接'; }
+  finally { evolutionBusy=false; }
+}
+async function changeEvolution() {
+  evolutionUpdate=true; learnToggle.disabled=repairToggle.disabled=true;
+  try { renderEvolution(await api('/api/evolution/settings',{learning:learnToggle.checked,repair:repairToggle.checked})); }
+  catch(error) { toast(error.message); }
+  finally { evolutionUpdate=false; learnToggle.disabled=repairToggle.disabled=false; refreshEvolution(); }
+}
+learnToggle.addEventListener('change',changeEvolution); repairToggle.addEventListener('change',changeEvolution);
+checkEvolution.addEventListener('click',async()=>{
+  checkEvolution.disabled=true;
+  try { renderEvolution(await api('/api/evolution/check',{model:$('model').value})); evolutionPanel.open=true; }
+  catch(error) { toast(error.message); refreshEvolution(); }
+});
+rollbackEvolution.addEventListener('click',async()=>{
+  rollbackEvolution.disabled=true;
+  try { await api('/api/evolution/rollback',{}); toast('已恢复上一版本，正在重新连接。'); }
+  catch(error) { toast(error.message); }
+  refreshEvolution();
+});
+refreshEvolution(); setInterval(refreshEvolution,5000);
+$('prompt').addEventListener('input', () => {
+  const selected = /^\s*\/([a-z0-9-]+)(?=\s|$)/.exec($('prompt').value)?.[1];
+  skillGrid.querySelectorAll('button').forEach(button => button.setAttribute('aria-pressed',String(button.dataset.skill === selected)));
+});
 $('composer').addEventListener('submit', async event => {
   event.preventDefault(); if (active || sending || !$('prompt').value.trim()) return;
   if (!$('model').value) return toast('请先连接 Ollama 并选择模型');
@@ -279,7 +468,7 @@ $('composer').addEventListener('submit', async event => {
   try {
     if (!current) { const result = await api('/api/conversations', {}); current = result.id; localStorage.setItem('guarded-conversation', current); }
     const attachmentText = attachments.length ? '\n\n我添加的工作区文件（请按任务需要读取）：\n' + attachments.map(file => file.path).join('\n') : '';
-    await api('/api/send', {conversation:current, text:$('prompt').value + attachmentText, model:$('model').value, mode:$('mode').value, profile_id:$('profile').value});
+    await api('/api/send', {conversation:current, text:$('prompt').value + attachmentText, model:$('model').value, mode:$('mode').value, profile_id:$('profile').value, thinking:$('deepThinking').checked});
     attachments = []; $('attachments').replaceChildren();
     $('prompt').value = ''; $('prompt').style.height = '';
     if ($('mode').value === 'desktop') showSettings(false);
@@ -423,6 +612,7 @@ $('panelBackdrop').addEventListener('click', () => { if (!$('settings').hidden) 
 compactLayout.addEventListener('change', closeSidebar);
 $('mode').addEventListener('change', () => setMode($('mode').value));
 $('model').addEventListener('change', () => localStorage.setItem('guarded-model', $('model').value));
+$('deepThinking').addEventListener('change', () => localStorage.setItem('guarded-deep-thinking', String($('deepThinking').checked)));
 $('connectionButton').addEventListener('click', loadModels);
 $('profile').addEventListener('change', updateProfile);
 $('stop').addEventListener('click', async () => { if (active) try { await api('/api/cancel', {id:active.id}); await refresh(); } catch(error) { toast(error.message); } });
@@ -471,13 +661,16 @@ setMode('assistant'); refresh(); loadModels(); setInterval(refresh, 850);
 (() => {
   const canvas = document.getElementById('glassScene');
   const toggle = document.getElementById('glassMotion');
+  const transparency = document.getElementById('glassTransparency');
   const note = document.getElementById('glassMotionNote');
   if (!canvas || !toggle) return;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const solid = matchMedia('(prefers-reduced-transparency: reduce)');
   const contrast = matchMedia('(forced-colors: active)');
   let enabled = true;
+  let lessTransparent = false;
   try { enabled = localStorage.getItem('guarded-glass-motion') !== 'off'; } catch {}
+  try { lessTransparent = localStorage.getItem('guarded-glass-solid') === 'on'; } catch {}
   let gl, program, buffer, uniforms, frameRequest = 0, lastPaint = 0, lastClock = 0;
   let sceneTime = 0, frames = 0, lastReport = 0, disposed = false, contextLost = false;
   let taskRunning = false, width = 0, height = 0;
@@ -584,7 +777,7 @@ setMode('assistant'); refresh(); loadModels(); setInterval(refresh, 850);
       lastReport=now;
     }
   }
-  function running() { return enabled && !reduced.matches && !solid.matches && !contrast.matches && !document.hidden && !taskRunning && !contextLost && !disposed && !!program; }
+  function running() { return enabled && !lessTransparent && !reduced.matches && !solid.matches && !contrast.matches && !document.hidden && !taskRunning && !contextLost && !disposed && !!program; }
   function tick(now) {
     frameRequest=0;
     if (!running()) return;
@@ -597,18 +790,27 @@ setMode('assistant'); refresh(); loadModels(); setInterval(refresh, 850);
   }
   function update() {
     cancelAnimationFrame(frameRequest); frameRequest=0; lastClock=0; lastPaint=0;
-    toggle.disabled=reduced.matches || solid.matches || contrast.matches || !program || contextLost;
+    toggle.disabled=lessTransparent || reduced.matches || solid.matches || contrast.matches || !program || contextLost;
     toggle.setAttribute('aria-checked',String(enabled && !toggle.disabled));
-    note.textContent=reduced.matches || solid.matches || contrast.matches ? '已遵循系统的减少动态或透明效果设置' : !program || contextLost ? '当前环境使用静态光影，保留磨砂效果' : '任务运行时自动暂停动态光影';
+    note.textContent=lessTransparent ? '减少透明效果已开启，动态光影暂停' : reduced.matches || solid.matches || contrast.matches ? '已遵循系统的减少动态或透明效果设置' : !program || contextLost ? '当前环境使用静态光影，保留磨砂效果' : '任务运行时自动暂停动态光影';
     const state=running()?'running':document.hidden?'hidden':taskRunning?'task-paused':contextLost?'context-lost':!program?'fallback':'paused';
     canvas.dataset.state=state;
-    document.documentElement.classList.toggle('glass-solid',solid.matches || contrast.matches);
-    if (!document.hidden && !contextLost && !solid.matches && !contrast.matches) draw();
+    document.documentElement.classList.toggle('glass-solid',lessTransparent || solid.matches || contrast.matches);
+    if (transparency) {
+      transparency.disabled=solid.matches || contrast.matches;
+      transparency.setAttribute('aria-checked',String(lessTransparent || solid.matches || contrast.matches));
+    }
+    if (!document.hidden && !contextLost && !lessTransparent && !solid.matches && !contrast.matches) draw();
     if (running()) frameRequest=requestAnimationFrame(tick);
   }
   toggle.addEventListener('click',()=>{
     enabled=!enabled;
     try { localStorage.setItem('guarded-glass-motion',enabled?'on':'off'); } catch {}
+    update();
+  });
+  transparency?.addEventListener('click',()=>{
+    lessTransparent=!lessTransparent;
+    try { localStorage.setItem('guarded-glass-solid',lessTransparent?'on':'off'); } catch {}
     update();
   });
   document.addEventListener('pointermove',event=>{
@@ -625,4 +827,13 @@ setMode('assistant'); refresh(); loadModels(); setInterval(refresh, 850);
   window.addEventListener('pagehide',event=>{cancelAnimationFrame(frameRequest);frameRequest=0;if (!event.persisted) {disposed=true;release();}});
   window.addEventListener('pageshow',event=>{if(event.persisted) update();});
   setup(); update();
+})();
+
+// Reference-inspired progressive enhancements; no network dependencies.
+(() => {
+  const prompt = $('prompt');
+  $('historySearch').addEventListener('input', filterHistory);
+  prompt.addEventListener('input', () => {
+    $('draftCount').textContent = prompt.value.length + ' / ' + prompt.maxLength;
+  });
 })();

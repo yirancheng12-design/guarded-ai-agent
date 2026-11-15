@@ -224,6 +224,8 @@ def validate_start(data):
         raise ValueError('任务内容长度无效')
     if not isinstance(data.get('model'), str) or not 1 <= len(data['model']) <= 200:
         raise ValueError('模型名称无效')
+    if type(data.get('thinking', False)) is not bool:
+        raise ValueError('深度思考选项必须为布尔值')
     if type(data.get('auto_execute', True)) is not bool:
         raise ValueError('自动执行设置必须是布尔值')
     if type(data.get('full_access', False)) is not bool:
@@ -297,6 +299,9 @@ def main():
             apply_options(toolbox, request.get('runtime_options', {}))
             client = CancellableClient(request['model'], request['base_url'],
                                        timeout=request.get('model_timeout', 600), cancelled=control.cancelled)
+            client.thinking = request.get('thinking', False)
+            if client.thinking:
+                emit({'type': 'event', 'kind': 'thinking_started'})
             # Only the current explicit request goes to the desktop planner.
             # Shared chat history is not additional desktop authorization.
             result = run_desktop(client, request['task'], toolbox, control.cancelled,
